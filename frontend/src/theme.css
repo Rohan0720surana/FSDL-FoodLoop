@@ -1,0 +1,287 @@
+/* FoodLoop design tokens — UI/UX Brief v2.0 §2-4, §11. Loaded after bootstrap.min.css. */
+
+:root {
+  /* base (dark, default) */
+  --bg: #0f1419;
+  --surface: #1a2129;
+  --surface-raised: #232c36;
+  --border: #2e3a46;
+  --text-primary: #e8edf2;
+  --text-secondary: #9aa8b6;
+  --text-muted: #5f6f7e;
+
+  /* brand */
+  --primary: #1fa97e;
+  --primary-hover: #178c68;
+  --primary-subtle: rgba(31, 169, 126, 0.1);
+
+  /* urgency scale — the only place warm color appears */
+  --time-ample: #1fa97e;
+  --time-moderate: #d9a441;
+  --time-urgent: #e07b39;
+  --time-critical: #d7443e;
+
+  /* status */
+  --success: #1fa97e;
+  --warning: #d9a441;
+  --danger: #d7443e;
+  --info: #4a90d9;
+
+  /* type */
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  /* elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+  /* bootstrap overrides */
+  --bs-primary: var(--primary);
+  --bs-primary-rgb: 31, 169, 126;
+  --bs-body-bg: var(--bg);
+  --bs-body-color: var(--text-primary);
+  --bs-border-color: var(--border);
+  --bs-body-font-family: var(--font-ui);
+}
+
+[data-theme="light"] {
+  --bg: #f5f7f9;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --border: #dde3e9;
+  --text-primary: #131a21;
+  --text-secondary: #54636f;
+  --text-muted: #8494a1;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+}
+
+body { transition: background 150ms ease-out, color 150ms ease-out; }
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- layout shells ---------- */
+.fl-shell { display: flex; min-height: 100vh; }
+.fl-main { flex: 1; min-width: 0; }
+.fl-container { max-width: 1280px; margin: 0 auto; padding: 0 var(--space-6); }
+.fl-card-list { max-width: 720px; }
+
+/* ---------- surfaces ---------- */
+.fl-surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.fl-surface-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+/* ---------- buttons ---------- */
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  height: 44px;
+  border-radius: var(--radius-sm);
+}
+.btn-primary:hover, .btn-primary:focus {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+.btn-outline-secondary {
+  border-color: var(--border);
+  color: var(--text-primary);
+  height: 44px;
+  border-radius: var(--radius-sm);
+}
+.btn-outline-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: transparent;
+  height: 44px;
+  border-radius: var(--radius-sm);
+}
+.btn-lg-touch { height: 52px; font-size: 1rem; }
+.btn-ghost { background: none; border: none; color: var(--text-secondary); }
+
+/* ---------- forms ---------- */
+.form-control, .form-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  height: 44px;
+  border-radius: var(--radius-sm);
+}
+.form-control:focus, .form-select:focus {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-subtle);
+}
+.form-label { color: var(--text-secondary); font-size: var(--text-sm, 14px); margin-bottom: var(--space-1); }
+.form-text { color: var(--text-muted); font-size: 12px; }
+.invalid-feedback { color: var(--danger); }
+
+/* ---------- urgency scale ---------- */
+.urgency-ample    { color: var(--time-ample); }
+.urgency-moderate  { color: var(--time-moderate); }
+.urgency-urgent    { color: var(--time-urgent); }
+.urgency-critical  { color: var(--time-critical); }
+.border-urgency-ample    { border-left-color: var(--time-ample) !important; }
+.border-urgency-moderate { border-left-color: var(--time-moderate) !important; }
+.border-urgency-urgent   { border-left-color: var(--time-urgent) !important; }
+.border-urgency-critical { border-left-color: var(--time-critical) !important; }
+
+/* ---------- listing / offer card ---------- */
+.fl-listing-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--time-ample);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-6);
+  transition: background 150ms ease-out, border-color 150ms ease-out;
+}
+.fl-listing-card:hover {
+  background: var(--surface-raised);
+}
+.fl-match-reason {
+  font-size: var(--text-sm, 14px);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+}
+.fl-countdown {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.fl-countdown.pulse { animation: fl-pulse 2s ease-in-out infinite; }
+@keyframes fl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) {
+  .fl-countdown.pulse { animation: none; }
+}
+
+/* ---------- metric card ---------- */
+.fl-metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+.fl-metric-value {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.fl-metric-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.fl-metric-delta { font-size: 14px; color: var(--success); }
+
+/* ---------- badges ---------- */
+.fl-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--primary-subtle);
+  color: var(--primary);
+}
+
+/* ---------- navbar ---------- */
+.fl-navbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.fl-navbar .nav-link {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.fl-navbar .nav-link.active {
+  color: var(--text-primary);
+  background: var(--primary-subtle);
+  border-radius: var(--radius-sm);
+}
+.fl-brand {
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+.fl-brand .dot { color: var(--primary); }
+
+/* ---------- step indicator ---------- */
+.fl-steps { display: flex; gap: var(--space-2); align-items: center; }
+.fl-step {
+  width: 28px; height: 28px;
+  border-radius: var(--radius-full);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.fl-step.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.fl-step.done { background: var(--primary-subtle); border-color: var(--primary); color: var(--primary); }
+.fl-step-line { flex: 1; height: 1px; background: var(--border); }
+
+/* ---------- hero ---------- */
+.fl-hero {
+  background: radial-gradient(circle at 20% 0%, rgba(31, 169, 126, 0.12), transparent 55%), var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- utility ---------- */
+.text-secondary-fl { color: var(--text-secondary); }
+.text-muted-fl { color: var(--text-muted); }
+.chip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 6px 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  cursor: pointer;
+}
+.chip.selected {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-subtle);
+}
