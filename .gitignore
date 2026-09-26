@@ -7,3 +7,6 @@ dist/
 
 # local tool settings
 .claude/
+
+# documents kept locally, not in the repo
+*.pdf
