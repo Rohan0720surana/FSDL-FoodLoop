@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
@@ -97,32 +97,10 @@ function dot(color) {
 }
 
 function RankedList() {
-  const [ranked, setRanked] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    let t;
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        t = setTimeout(() => setRanked(true), 900);
-        io.disconnect();
-      }
-    }, { threshold: 0.5 });
-    io.observe(el);
-    return () => { io.disconnect(); clearTimeout(t); };
-  }, []);
-
-  const replay = () => {
-    setRanked(false);
-    setTimeout(() => setRanked(true), 1100);
-  };
-
-  const order = ranked ? byScore : candidates.map((c) => c.id);
+  const order = byScore;
 
   return (
-    <div className="fl-rank-panel" ref={ref}>
+    <div className="fl-rank-panel">
       <div className="fl-rank-head">
         <div>
           <div className="fl-text-lg" style={{ fontWeight: 600 }}>{showcaseListing.description}</div>
@@ -133,17 +111,13 @@ function RankedList() {
         <span className="fl-timer-chip"><CountdownTimer deadline={showcaseListing.pickupDeadline} /></span>
       </div>
       <div className="px-4 pt-3 pb-2 d-flex justify-content-between align-items-center">
-        <span className={`fl-rank-mode ${ranked ? "on" : ""}`}>
-          {ranked ? "Ranked by FoodLoop score" : "Sorted by distance"}
-        </span>
-        <button type="button" className="fl-replay" onClick={replay}>
-          <i className="bi bi-arrow-counterclockwise me-1" />Replay
-        </button>
+        <span className="fl-rank-mode on">Ranked by FoodLoop score</span>
+        <span className="fl-text-xs text-muted-fl">closest is not first</span>
       </div>
-      <div className="fl-rank-stack" style={{ height: candidates.length * ROW_H }} aria-live="polite">
+      <div className="fl-rank-stack" style={{ height: candidates.length * ROW_H }}>
         {candidates.map((m) => {
           const pos = order.indexOf(m.id);
-          const top = ranked && pos === 0;
+          const top = pos === 0;
           return (
             <div
               key={m.id}
@@ -160,7 +134,7 @@ function RankedList() {
                   {m.locality} · {m.distanceKm} km · {m.note}
                 </div>
               </div>
-              <div className="fl-score-pill" style={{ opacity: ranked ? 1 : 0.35, transition: "opacity 400ms" }}>
+              <div className="fl-score-pill">
                 {m.score}<small>/100</small>
               </div>
             </div>

@@ -43,7 +43,7 @@ function FitTo({ points }) {
 function FlyTo({ target }) {
   const map = useMap();
   useEffect(() => {
-    if (target) map.flyTo([target.lat, target.lng], 14, { duration: 0.8 });
+    if (target) map.setView([target.lat, target.lng], 14, { animate: false });
   }, [map, target]);
   return null;
 }
