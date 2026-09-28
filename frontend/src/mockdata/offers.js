@@ -53,7 +53,7 @@ export const mockOffers = [
       donorLocality: "Fort",
     },
     matchReason: "Fits your capacity · accepted food type",
-    subscores: { urgency: 0.6, proximity: 0.66, capacity: 0.75, typeMatch: 0.6, reliability: 0.7 },
+    subscores: { urgency: 0.6, proximity: 0.66, capacity: 0.75, typeMatch: 0.6, reliability: 0.72 },
     rank: 2,
   },
   {
