@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Polyline, Circle, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -30,7 +30,6 @@ const diamond = (color, size = 14) =>
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
-const youIcon = L.divIcon({ className: "", html: `<div class="fl-you-pin"></div>`, iconSize: [18, 18], iconAnchor: [9, 9] });
 
 function FitTo({ points }) {
   const map = useMap();
@@ -48,51 +47,12 @@ function FlyTo({ target }) {
   return null;
 }
 
-// Browser location, updated as the device moves. Needs the user's permission.
-function useLiveLocation(enabled) {
-  const [pos, setPos] = useState(null);
-  const [status, setStatus] = useState("");
-  const watchRef = useRef(null);
-
-  useEffect(() => {
-    if (!enabled) {
-      setPos(null);
-      setStatus("");
-      return undefined;
-    }
-    if (!("geolocation" in navigator)) {
-      setStatus("This browser can't share its location.");
-      return undefined;
-    }
-    setStatus("Finding your location…");
-    watchRef.current = navigator.geolocation.watchPosition(
-      (p) => {
-        setPos({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) });
-        setStatus("");
-      },
-      (err) => setStatus(err.code === 1
-        ? "Location permission was declined, so distances are estimated from your shelter."
-        : "Couldn't get a location fix. Try again near a window."),
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-    );
-    return () => navigator.geolocation.clearWatch(watchRef.current);
-  }, [enabled]);
-
-  return { pos, status };
-}
-
 function Legend({ items }) {
   return (
     <div className="fl-map-legend" aria-hidden="true">
       {items.map(([kind, color, label]) => (
         <span key={label}>
-          <i
-            className={kind === "sq" ? "sq" : "d"}
-            style={{
-              background: color,
-              boxShadow: kind === "you" ? "0 0 0 3px rgba(47,111,237,.25)" : undefined,
-            }}
-          />
+          <i className={kind === "sq" ? "sq" : "d"} style={{ background: color }} />
           {label}
         </span>
       ))}
@@ -103,11 +63,9 @@ function Legend({ items }) {
 /* ================= RECIPIENT: route to the kitchen ================= */
 function RecipientMap() {
   const [stage, setStage] = useState("route"); // route -> arrived -> done
-  const [useGps, setUseGps] = useState(false);
   const [focus, setFocus] = useState(null);
-  const { pos: you, status } = useLiveLocation(useGps);
 
-  const from = you ?? SHELTER;
+  const from = SHELTER;
   const leg = trip(from, KITCHEN);
   const fitPoints = useMemo(() => [SHELTER, KITCHEN], []);
   const others = mockOffers.map((o) => ({
@@ -126,7 +84,7 @@ function RecipientMap() {
         </p>
 
         <div className="fl-stat-pair mb-2">
-          <div><div className="v">{leg.km}<small className="fl-text-sm"> km</small></div><div className="l">{you ? "from you, by road" : "by road"}</div></div>
+          <div><div className="v">{leg.km}<small className="fl-text-sm"> km</small></div><div className="l">by road</div></div>
           <div><div className="v">~{leg.min}<small className="fl-text-sm"> min</small></div><div className="l">{leg.peak ? "evening traffic" : "normal traffic"}</div></div>
           <div><div className="v" style={{ fontSize: 20 }}><CountdownTimer deadline={PICKUP.pickupDeadline} /></div><div className="l">until deadline</div></div>
         </div>
@@ -139,16 +97,7 @@ function RecipientMap() {
           <a className="btn btn-primary px-3" href={directionsUrl(from, KITCHEN)} target="_blank" rel="noreferrer">
             <i className="bi bi-sign-turn-right" aria-hidden="true" />Open in Google Maps
           </a>
-          <button type="button" className="btn btn-outline-secondary px-3" onClick={() => setUseGps((v) => !v)} aria-pressed={useGps}>
-            <i className={`bi ${useGps ? "bi-geo-alt-fill" : "bi-crosshair"}`} aria-hidden="true" />
-            {useGps ? "Stop using my location" : "Use my location"}
-          </button>
         </div>
-        {(status || you) && (
-          <div className="fl-geo-status" aria-live="polite">
-            {status || `Live: ${leg.km} km from you to the kitchen, accurate to about ${you.acc} m.`}
-          </div>
-        )}
 
         <div className="fl-step-box mt-4">
           {stage === "route" && (
@@ -226,13 +175,11 @@ function RecipientMap() {
           <Marker position={[SHELTER.lat, SHELTER.lng]} icon={diamond("#1e4435", 18)}>
             <Tooltip permanent direction="bottom" offset={[0, 12]}>Sneh Sadan (you)</Tooltip>
           </Marker>
-          {you && <Marker position={[you.lat, you.lng]} icon={youIcon}><Tooltip direction="top">You are here</Tooltip></Marker>}
         </MapContainer>
         <Legend items={[
           ["d", "#c9a24a", "Tonight's pickup"],
           ["sq", "#1e4435", "Your shelter"],
           ["d", URGENCY.moderate, "Other offers, coloured by time left"],
-          ["you", "#2f6fed", "You, when location is on"],
         ]} />
         <div className="fl-map-note">The dashed circle is the {SHELTER.serviceRadiusKm} km area you collect from. Offers only come from inside it.</div>
       </div>

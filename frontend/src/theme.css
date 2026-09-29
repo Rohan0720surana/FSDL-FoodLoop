@@ -947,8 +947,6 @@ body { font-size: 16px; }
 .fl-list-btn .s { font-size: 13px; color: var(--text-secondary); }
 .fl-list-btn .r { font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; }
 .fl-step-box { border: 1px solid var(--border); background: var(--surface-raised); border-radius: 18px; padding: 22px; }
-.fl-geo-status { font-size: 13.5px; color: var(--text-secondary); margin-top: 10px; }
-.fl-you-pin { width: 18px; height: 18px; border-radius: 50%; background: #2f6fed; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(47,111,237,0.22); }
 
 /* ---------------- impact report ---------------- */
 .fl-report-open { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 56px; align-items: center; }
