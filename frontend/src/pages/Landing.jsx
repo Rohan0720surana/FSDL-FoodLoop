@@ -46,8 +46,8 @@ const evening = [
   { tm: "9:40 pm", tx: "Wedding at a banquet hall in Andheri ends. Sixty thalis untouched." },
   { tm: "9:55 pm", tx: "Manager calls two NGOs he has numbers for. One is closed, one doesn't pick up." },
   { tm: "10:30 pm", tx: "A volunteer group replies on WhatsApp. Their van is in Thane." },
-  { tm: "11:15 pm", tx: "Kitchen staff need to leave. The trays are still sitting out." },
-  { tm: "12:05 am", tx: "Food is thrown away.", bad: true },
+  { tm: "11:15 pm", tx: "The kitchen has to close. The trays are still sitting out." },
+  { tm: "11:40 pm", tx: "Before locking up, the staff throw the food away.", bad: true },
 ];
 
 const steps = [
