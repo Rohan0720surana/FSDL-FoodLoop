@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- FoodLoop logo: a bowl of food inside a loop arrow -->
+  <circle cx="32" cy="32" r="31" fill="#ffffff"/>
+  <path d="M 14 32 A 18 18 0 1 1 32 50" fill="none" stroke="#2e7d32" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="23,50 32,44 32,56" fill="#2e7d32"/>
+  <path d="M 21 31 H 43 A 11 11 0 0 1 21 31 Z" fill="#2e7d32"/>
+  <path d="M 32 28 C 27 24 28 19 34 17 C 36 22 35 26 32 28 Z" fill="#66bb6a"/>
+</svg>

@@ -3,17 +3,19 @@
 <head>
   <title>FoodLoop - Register</title>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
 </head>
 <body>
 
   <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
     <p>Register your organisation</p>
   </div>
 
   <div class="navbar">
     <a href="index.html">Home</a>
-    <a href="register.html">Register</a>
+    <a href="register.html" class="active">Register</a>
     <a href="login.html">Login</a>
     <a href="donor.html">Donor</a>
     <a href="recipient.html">Recipient</a>
@@ -23,18 +25,19 @@
   <div class="content">
     <h2>Registration Form</h2>
 
-    <form onsubmit="return validateForm()">
+    <form onsubmit="return validateForm()" onreset="clearErrors()">
       <table>
         <tr>
           <td>I am a:</td>
           <td>
             <input type="radio" name="role" value="Donor"> Donor (kitchen)
             <input type="radio" name="role" value="Recipient"> Recipient (shelter / NGO)
+            <span class="error" id="err-role"></span>
           </td>
         </tr>
         <tr>
           <td>Organisation name:</td>
-          <td><input type="text" id="orgName" placeholder="e.g. St. Xavier's College Canteen"></td>
+          <td><input type="text" id="orgName" placeholder="e.g. St. Xavier's College Canteen"><span class="error" id="err-orgName"></span></td>
         </tr>
         <tr>
           <td>Type:</td>
@@ -48,35 +51,37 @@
               <option>Shelter</option>
               <option>Community kitchen</option>
             </select>
+            <span class="error" id="err-orgType"></span>
           </td>
         </tr>
         <tr>
           <td>Contact person:</td>
-          <td><input type="text" id="contact" placeholder="Enter full name"></td>
+          <td><input type="text" id="contact" placeholder="Enter full name"><span class="error" id="err-contact"></span></td>
         </tr>
         <tr>
           <td>Mobile number:</td>
-          <td><input type="text" id="mobile" placeholder="Enter 10 digit mobile number"></td>
+          <td><input type="text" id="mobile" placeholder="Enter 10 digit mobile number"><span class="error" id="err-mobile"></span></td>
         </tr>
         <tr>
           <td>Email:</td>
-          <td><input type="text" id="email" placeholder="Enter your email address"></td>
+          <td><input type="text" id="email" placeholder="Enter your email address"><span class="error" id="err-email"></span></td>
         </tr>
         <tr>
           <td>Address:</td>
-          <td><textarea id="address" rows="3" placeholder="Enter full address"></textarea></td>
+          <td><textarea id="address" rows="3" placeholder="Enter full address"></textarea><span class="error" id="err-address"></span></td>
         </tr>
         <tr>
           <td>Password:</td>
-          <td><input type="password" id="password" placeholder="At least 6 characters"></td>
+          <td><input type="password" id="password" placeholder="At least 6 characters"><span class="error" id="err-password"></span></td>
         </tr>
         <tr>
           <td>Confirm password:</td>
-          <td><input type="password" id="confirmPassword" placeholder="Re-enter your password"></td>
+          <td><input type="password" id="confirmPassword" placeholder="Re-enter your password"><span class="error" id="err-confirmPassword"></span></td>
         </tr>
         <tr>
           <td></td>
-          <td><input type="checkbox" id="terms"> I agree that only safe, labelled food will be shared</td>
+          <td><input type="checkbox" id="terms"> I agree that only safe, labelled food will be shared
+            <span class="error" id="err-terms"></span></td>
         </tr>
       </table>
 
@@ -86,11 +91,35 @@
   </div>
 
   <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
   <script>
+    // show a red message under one field and give the field a red border
+    function showError(id, message) {
+      document.getElementById("err-" + id).innerText = message;
+      let field = document.getElementById(id);
+      if (field != null) {
+        field.classList.add("input-error");
+      }
+    }
+
+    // remove all old messages before checking again
+    function clearErrors() {
+      let messages = document.querySelectorAll(".error");
+      for (let i = 0; i < messages.length; i++) {
+        messages[i].innerText = "";
+      }
+      let fields = document.querySelectorAll(".input-error");
+      for (let i = 0; i < fields.length; i++) {
+        fields[i].classList.remove("input-error");
+      }
+    }
+
     function validateForm() {
+      clearErrors();
+      let ok = true;
+
       // get the values
       let role = document.querySelector('input[name="role"]:checked');
       let orgName = document.getElementById("orgName").value;
@@ -103,40 +132,26 @@
       let confirmPassword = document.getElementById("confirmPassword").value;
       let terms = document.getElementById("terms").checked;
 
-      // check every field is filled
-      if (role == null || orgName == "" || orgType == "" || contact == "" ||
-          mobile == "" || email == "" || address == "" || password == "") {
-        alert("Please fill all the fields.");
-        return false;
-      }
+      if (role == null) { showError("role", "Choose donor or recipient."); ok = false; }
+      if (orgName == "") { showError("orgName", "Enter the organisation name."); ok = false; }
+      if (orgType == "") { showError("orgType", "Choose a type."); ok = false; }
+      if (contact == "") { showError("contact", "Enter the contact person's name."); ok = false; }
 
       // mobile number: exactly 10 digits, starting with 6, 7, 8 or 9
       let mobilePattern = /^[6-9][0-9]{9}$/;
-      if (!mobilePattern.test(mobile)) {
-        alert("Please enter a valid 10 digit mobile number.");
-        return false;
-      }
+      if (!mobilePattern.test(mobile)) { showError("mobile", "Enter a valid 10 digit mobile number."); ok = false; }
 
       // email: something@something.something
       let emailPattern = /^[^ @]+@[^ @]+\.[a-z]+$/;
-      if (!emailPattern.test(email)) {
-        alert("Please enter a valid email address.");
-        return false;
-      }
+      if (!emailPattern.test(email)) { showError("email", "Enter a valid email address."); ok = false; }
 
-      if (password.length < 6) {
-        alert("Password must be at least 6 characters.");
-        return false;
-      }
+      if (address == "") { showError("address", "Enter the address."); ok = false; }
+      if (password.length < 6) { showError("password", "Password must be at least 6 characters."); ok = false; }
+      if (password != confirmPassword) { showError("confirmPassword", "Passwords do not match."); ok = false; }
+      if (!terms) { showError("terms", "Please accept the food safety agreement."); ok = false; }
 
-      if (password != confirmPassword) {
-        alert("Passwords do not match.");
-        return false;
-      }
-
-      if (!terms) {
-        alert("Please accept the food safety agreement.");
-        return false;
+      if (!ok) {
+        return false;   // stay on the page so the user can fix the red fields
       }
 
       alert("Thank you, " + orgName + "! You are registered as a " + role.value + ".");

@@ -28,8 +28,8 @@ function addRow(listing, index) {
     "<td>" + listing.type + "</td>" +
     "<td>" + listing.meals + "</td>" +
     "<td id='time" + index + "'></td>" +
-    "<td>" + listing.status + "</td>" +
-    "<td><button class='btn btn-red' onclick='cancelListing(this)'>Cancel</button></td>";
+    "<td id='status" + index + "'>" + listing.status + "</td>" +
+    "<td id='action" + index + "'><button class='btn btn-red' onclick='cancelListing(this)'>Cancel</button></td>";
 
   table.append(row);
 }
@@ -43,10 +43,21 @@ for (let i = 0; i < listings.length; i++) {
 function updateTimes() {
   for (let i = 0; i < listings.length; i++) {
     let cell = document.getElementById("time" + i);
-    if (cell == null) continue; // that listing was cancelled
+    if (cell == null) continue;           // that listing was cancelled
+    if (listings[i].expired) continue;    // already marked expired
 
     let msLeft = listings[i].deadline - Date.now();
     cell.innerText = formatTime(msLeft);
+
+    // deadline passed: grey out the row, change the status, remove the Cancel button
+    if (msLeft <= 0) {
+      listings[i].expired = true;
+      cell.parentElement.classList.add("passed-row");
+      cell.classList.remove("green-text", "orange-text", "red-text");
+      document.getElementById("status" + i).innerText = "Expired - not collected";
+      document.getElementById("action" + i).innerText = "-";
+      continue;
+    }
 
     // colour depends on how much time is left
     cell.classList.remove("green-text", "orange-text", "red-text");
@@ -70,26 +81,52 @@ function cancelListing(button) {
 }
 
 // Finding the best shelter "takes time", so we use a Promise.
-// It waits 2 seconds (like asking a server) and then gives back the best shelter.
+// It waits 2 seconds (like asking a server), scores every shelter
+// and gives back the list sorted best first.
 function findBestShelter(meals, type, minutesLeft) {
   return new Promise(function (resolve, reject) {
     setTimeout(function () {
-      let best = null;
-      let bestScore = 0;
+      let ranked = [];
       for (let i = 0; i < shelters.length; i++) {
         let score = matchScore(shelters[i], meals, type, minutesLeft);
-        if (score > bestScore) {
-          bestScore = score;
-          best = shelters[i];
+        if (score > 0) {
+          ranked.push({ shelter: shelters[i], score: score });
         }
       }
-      if (best == null) {
+      ranked.sort(function (a, b) {
+        return b.score - a.score;
+      });
+
+      if (ranked.length == 0) {
         reject("No shelter can collect this food in time. Try a longer pickup time or fewer meals.");
       } else {
-        resolve({ shelter: best, score: bestScore });
+        resolve(ranked);
       }
     }, 2000);
   });
+}
+
+// show the top 3 shelters in a small table under the form
+function showRanking(ranked) {
+  let table = document.getElementById("rankTable");
+  table.innerHTML = "<tr><th>Rank</th><th>Shelter</th><th>Distance</th><th>Drive time</th><th>Score</th></tr>";
+
+  for (let i = 0; i < ranked.length && i < 3; i++) {
+    let s = ranked[i].shelter;
+    let km = distanceKm(kitchen.lat, kitchen.lng, s.lat, s.lng);
+    let row = document.createElement("tr");
+    if (i == 0) {
+      row.classList.add("accepted-row");
+    }
+    row.innerHTML =
+      "<td>#" + (i + 1) + "</td>" +
+      "<td>" + s.name + ", " + s.area + "</td>" +
+      "<td>" + km + " km</td>" +
+      "<td>" + driveMinutes(km) + " min</td>" +
+      "<td><b>" + ranked[i].score + "</b> / 100</td>";
+    table.append(row);
+  }
+  document.getElementById("rankBox").classList.remove("hidden");
 }
 
 // "Post food" button
@@ -111,9 +148,12 @@ function postFood() {
   }
 
   message.innerText = "Finding the best shelter...";
+  message.className = "";
+  document.getElementById("rankBox").classList.add("hidden");
 
   findBestShelter(meals, type, hours * 60)
-    .then(function (result) {
+    .then(function (ranked) {
+      let result = ranked[0];
       let listing = {
         food: food,
         type: type,
@@ -125,11 +165,14 @@ function postFood() {
       addRow(listing, listings.length - 1);
       updateTimes();
       message.innerText = "Posted! Offered to " + result.shelter.name + ", " + result.shelter.area + ".";
+      message.className = "green-text";
+      showRanking(ranked);
       document.getElementById("food").value = "";
       document.getElementById("quantity").value = "";
       document.getElementById("hours").value = "";
     })
     .catch(function (error) {
       message.innerText = error;
+      message.className = "red-text";
     });
 }

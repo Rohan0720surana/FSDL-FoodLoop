@@ -12,6 +12,14 @@ body {
   background-color: #2e7d32;
   color: white;
   padding: 15px 30px;
+  overflow: hidden;   /* keeps the floating logo inside the header */
+}
+
+.logo {
+  float: left;
+  width: 56px;
+  height: 56px;
+  margin-right: 14px;
 }
 
 .header h1 {
@@ -32,13 +40,23 @@ body {
 .navbar a {
   color: white;
   text-decoration: none;
-  margin-right: 20px;
+  margin-right: 12px;
+  padding: 4px 10px;
   font-weight: bold;
+}
+
+/* the page you are on */
+.navbar a.active {
+  background-color: white;
+  color: #1b5e20;
+  border-radius: 4px;
 }
 
 /* ---------- main content ---------- */
 .content {
-  width: 900px;
+  width: 90%;
+  max-width: 900px;
+  box-sizing: border-box;   /* padding stays inside the width */
   margin: 20px auto;
   background-color: white;
   padding: 20px 30px;
@@ -62,6 +80,7 @@ h2 {
 
 .photo {
   width: 420px;
+  max-width: 100%;
   border-radius: 6px;
 }
 
@@ -119,6 +138,38 @@ textarea {
   background-color: #c62828;
 }
 
+.btn:disabled {
+  background-color: #bbbbbb;
+  cursor: not-allowed;
+}
+
+/* small text-style button, used for "Why?" */
+.link-btn {
+  background: none;
+  border: none;
+  color: #2e7d32;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+/* ---------- form errors (shown next to the field) ---------- */
+.error {
+  display: block;
+  color: #c62828;
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.input-error {
+  border: 1px solid #c62828 !important;
+  background-color: #fff5f5;
+}
+
+.hidden {
+  display: none;
+}
+
 /* ---------- status colours (added with classList) ---------- */
 .green-text {
   color: #2e7d32;
@@ -141,6 +192,11 @@ textarea {
 
 .passed-row {
   color: #999999;
+}
+
+.breakdown-row td {
+  background-color: #fafafa;
+  font-size: 14px;
 }
 
 /* ---------- footer ---------- */

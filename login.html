@@ -3,10 +3,12 @@
 <head>
   <title>FoodLoop - Login</title>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
 </head>
 <body>
 
   <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
     <p>Log in to your account</p>
   </div>
@@ -14,7 +16,7 @@
   <div class="navbar">
     <a href="index.html">Home</a>
     <a href="register.html">Register</a>
-    <a href="login.html">Login</a>
+    <a href="login.html" class="active">Login</a>
     <a href="donor.html">Donor</a>
     <a href="recipient.html">Recipient</a>
     <a href="map.html">Map</a>
@@ -32,34 +34,58 @@
         Password:<br>
         <input type="password" id="password" placeholder="Enter your password">
       </p>
-      <p>
-        Log in as:
-        <input type="radio" name="role" value="donor" checked> Donor
-        <input type="radio" name="role" value="recipient"> Recipient
-      </p>
+      <p id="loginError" class="red-text"></p>
       <input type="submit" value="Login" class="btn">
     </form>
+
+    <div class="box">
+      <p><b>Demo accounts</b> (there is no database yet, so these are stored in an array)</p>
+      <table>
+        <tr><th>Organisation</th><th>Email</th><th>Password</th><th>Opens</th></tr>
+        <tr><td>St. Xavier's College Canteen</td><td>canteen@stxaviers.edu</td><td>canteen123</td><td>Donor page</td></tr>
+        <tr><td>Sneh Sadan Balgram</td><td>contact@snehsadan.org</td><td>shelter123</td><td>Recipient page</td></tr>
+      </table>
+    </div>
 
     <p>New organisation? <a href="register.html">Register here</a></p>
   </div>
 
   <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
   <script>
+    // demo accounts (later these will come from the database)
+    let users = [
+      { email: "canteen@stxaviers.edu", password: "canteen123", role: "donor" },
+      { email: "contact@snehsadan.org", password: "shelter123", role: "recipient" }
+    ];
+
     function login() {
       let email = document.getElementById("email").value;
       let password = document.getElementById("password").value;
-      let role = document.querySelector('input[name="role"]:checked').value;
+      let error = document.getElementById("loginError");
 
       if (email == "" || password == "") {
-        alert("Please enter your email and password.");
+        error.innerText = "Please enter your email and password.";
         return false;
       }
 
-      // no real accounts yet (no backend), so we just open the right dashboard
-      if (role == "donor") {
+      // look for a user with this email and password
+      let user = null;
+      for (let i = 0; i < users.length; i++) {
+        if (users[i].email == email && users[i].password == password) {
+          user = users[i];
+        }
+      }
+
+      if (user == null) {
+        error.innerText = "Wrong email or password.";
+        return false;
+      }
+
+      // open the right dashboard for this account
+      if (user.role == "donor") {
         window.location.href = "donor.html";
       } else {
         window.location.href = "recipient.html";

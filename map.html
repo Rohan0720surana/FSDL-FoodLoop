@@ -3,10 +3,12 @@
 <head>
   <title>FoodLoop - Map</title>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
 </head>
 <body>
 
   <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
     <p>Map of our kitchen and nearby shelters</p>
   </div>
@@ -17,7 +19,7 @@
     <a href="login.html">Login</a>
     <a href="donor.html">Donor</a>
     <a href="recipient.html">Recipient</a>
-    <a href="map.html">Map</a>
+    <a href="map.html" class="active">Map</a>
   </div>
 
   <div class="content">
@@ -46,7 +48,7 @@
   </div>
 
   <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
   <script src="data.js"></script>
@@ -80,12 +82,24 @@
         "<td>" + s.area + "</td>" +
         "<td>" + km + " km</td>" +
         "<td>" + driveMinutes(km) + " min</td>" +
-        "<td><button class='btn' onclick='showShelter(" + i + ")'>Show on map</button></td>";
+        "<td><button class='btn' onclick='showShelter(" + i + ")'>Show route</button></td>";
       table.append(row);
     }
 
+    // show the driving route from our kitchen to one shelter
     function showShelter(i) {
-      showPlace(shelters[i].name + ", " + shelters[i].area, shelters[i].lat, shelters[i].lng);
+      let s = shelters[i];
+      let km = distanceKm(kitchen.lat, kitchen.lng, s.lat, s.lng);
+      let url = "https://maps.google.com/maps?saddr=" + kitchen.lat + "," + kitchen.lng +
+        "&daddr=" + s.lat + "," + s.lng + "&output=embed";
+      document.getElementById("map").setAttribute("src", url);
+      document.getElementById("mapTitle").innerText =
+        "Route to " + s.name + ", " + s.area + " (" + km + " km, about " + driveMinutes(km) + " min)";
+
+      let directions = "https://www.google.com/maps/dir/?api=1" +
+        "&origin=" + kitchen.lat + "," + kitchen.lng +
+        "&destination=" + s.lat + "," + s.lng;
+      document.getElementById("directions").setAttribute("href", directions);
     }
 
     // start with the kitchen shown

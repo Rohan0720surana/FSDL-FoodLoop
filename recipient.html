@@ -3,10 +3,12 @@
 <head>
   <title>FoodLoop - Recipient Dashboard</title>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
 </head>
 <body>
 
   <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
     <p>Recipient dashboard &middot; Sneh Sadan Balgram, Dadar</p>
   </div>
@@ -16,7 +18,7 @@
     <a href="register.html">Register</a>
     <a href="login.html">Login</a>
     <a href="donor.html">Donor</a>
-    <a href="recipient.html">Recipient</a>
+    <a href="recipient.html" class="active">Recipient</a>
     <a href="map.html">Map</a>
   </div>
 
@@ -27,7 +29,7 @@
     </div>
 
     <h2>Food offered to you</h2>
-    <p>Offers are sorted by match score, best first. You can accept or pass.</p>
+    <p>Offers are sorted by match score, best first. Click <b>Why?</b> to see how a score was worked out. You can accept or pass.</p>
     <table id="offerTable">
       <tr>
         <th>Rank</th>
@@ -58,7 +60,7 @@
   </div>
 
   <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
   <script src="data.js"></script>
@@ -66,24 +68,33 @@
     // capacity: 32 of 80 meals already used today
     let capacity = 80;
     let used = 32;
-    let left = capacity - used;
-    document.getElementById("capacityText").innerHTML =
-      "Room left today: <b>" + left + " meals</b> (" + used + " of " + capacity + " used)";
 
-    // offers sent to Sneh Sadan (score is out of 100)
+    // offers sent to Sneh Sadan.
+    // Each factor is between 0 and 1: time, distance, capacity, food type, reliability.
     let offers = [
-      { kitchen: "Yazdani Irani Bakery", area: "Fort", food: "Bun-maska + pastries", meals: 30, km: 11.9, score: 66 },
-      { kitchen: "St. Xavier's College Canteen", area: "Dhobi Talao", food: "Veg biryani + dal", meals: 48, km: 10.1, score: 84 },
-      { kitchen: "Konkan Spice Caterers", area: "Powai", food: "Vegetable sandwiches", meals: 18, km: 16.7, score: 59 },
-      { kitchen: "Regency Banquet Hall", area: "Andheri West", food: "Paneer tikka trays", meals: 45, km: 14.6, score: 65 }
+      { kitchen: "Yazdani Irani Bakery", area: "Fort", food: "Bun-maska + pastries", meals: 30, km: 11.9, factors: [0.62, 0.56, 0.66, 1, 0.72] },
+      { kitchen: "St. Xavier's College Canteen", area: "Dhobi Talao", food: "Veg biryani + dal", meals: 48, km: 10.1, factors: [0.82, 0.77, 0.95, 1, 0.71] },
+      { kitchen: "Konkan Spice Caterers", area: "Powai", food: "Vegetable sandwiches", meals: 18, km: 16.7, factors: [0.60, 0.33, 0.60, 1, 0.80] },
+      { kitchen: "Regency Banquet Hall", area: "Andheri West", food: "Paneer tikka trays", meals: 45, km: 14.6, factors: [0.55, 0.40, 0.94, 1, 0.70] }
     ];
+
+    // score out of 100 = 35% time + 25% distance + 20% capacity + 10% food type + 10% reliability
+    let weights = [0.35, 0.25, 0.20, 0.10, 0.10];
+    let factorNames = ["Time", "Distance", "Capacity", "Food type", "Reliability"];
+    for (let i = 0; i < offers.length; i++) {
+      let total = 0;
+      for (let k = 0; k < weights.length; k++) {
+        total = total + weights[k] * offers[i].factors[k];
+      }
+      offers[i].score = Math.round(total * 100);
+    }
 
     // sort highest score first
     offers.sort(function (a, b) {
       return b.score - a.score;
     });
 
-    // build the table with a for loop
+    // build the table with a for loop: one offer row + one hidden "why" row each
     let table = document.getElementById("offerTable");
     for (let i = 0; i < offers.length; i++) {
       let row = document.createElement("tr");
@@ -93,26 +104,61 @@
         "<td>" + offers[i].food + "</td>" +
         "<td>" + offers[i].meals + "</td>" +
         "<td>" + offers[i].km + " km</td>" +
-        "<td><b>" + offers[i].score + "</b> / 100</td>" +
-        "<td>" +
-          "<button class='btn' onclick='accept(this)'>Accept</button> " +
-          "<button class='btn btn-grey' onclick='pass(this)'>Pass</button>" +
+        "<td style='white-space: nowrap'><b>" + offers[i].score + "</b> / 100<br><button class='link-btn' onclick='toggleWhy(" + i + ")'>Why?</button></td>" +
+        "<td id='action" + i + "'>" +
+          "<button class='btn' id='accept" + i + "' onclick='accept(" + i + ")'>Accept</button> " +
+          "<button class='btn btn-grey' onclick='pass(" + i + ")'>Pass</button>" +
         "</td>";
       table.append(row);
+
+      // the breakdown, e.g. "Time 0.82 x 35% = 28.7"
+      let parts = [];
+      for (let k = 0; k < weights.length; k++) {
+        let points = Math.round(offers[i].factors[k] * weights[k] * 1000) / 10;
+        parts.push(factorNames[k] + " " + offers[i].factors[k] + " x " + Math.round(weights[k] * 100) + "% = " + points);
+      }
+      let why = document.createElement("tr");
+      why.id = "why" + i;
+      why.classList.add("hidden", "breakdown-row");
+      why.innerHTML = "<td colspan='7'>" + parts.join(" &nbsp;+&nbsp; ") + " &nbsp;=&nbsp; <b>" + offers[i].score + "</b></td>";
+      table.append(why);
     }
 
-    // Accept: highlight the row and replace the buttons with a message
-    function accept(button) {
-      let row = button.parentElement.parentElement;
-      row.classList.add("accepted-row");
-      button.parentElement.innerHTML = "<span class='green-text'>Accepted - send your staff</span>";
+    // show or hide the breakdown row
+    function toggleWhy(i) {
+      document.getElementById("why" + i).classList.toggle("hidden");
+    }
+
+    // write the capacity line and turn off Accept buttons for offers that no longer fit
+    function updateCapacity() {
+      let left = capacity - used;
+      document.getElementById("capacityText").innerHTML =
+        "Room left today: <b>" + left + " meals</b> (" + used + " of " + capacity + " used)";
+
+      for (let i = 0; i < offers.length; i++) {
+        let button = document.getElementById("accept" + i);
+        if (button != null && offers[i].meals > left) {
+          button.disabled = true;
+          button.title = "Not enough room left today";
+        }
+      }
+    }
+    updateCapacity();
+
+    // Accept: highlight the row, add the meals to today's total
+    function accept(i) {
+      let cell = document.getElementById("action" + i);
+      cell.parentElement.classList.add("accepted-row");
+      cell.innerHTML = "<span class='green-text'>Accepted - send your staff</span>";
+      used = used + offers[i].meals;
+      updateCapacity();
     }
 
     // Pass: grey out the row. The offer goes to the next shelter.
-    function pass(button) {
-      let row = button.parentElement.parentElement;
-      row.classList.add("passed-row");
-      button.parentElement.innerText = "Passed - offered to the next shelter";
+    function pass(i) {
+      let cell = document.getElementById("action" + i);
+      cell.parentElement.classList.add("passed-row");
+      cell.innerText = "Passed - offered to the next shelter";
     }
   </script>
 

@@ -3,10 +3,12 @@
 <head>
   <title>FoodLoop - Donor Dashboard</title>
   <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
 </head>
 <body>
 
   <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
     <p>Donor dashboard &middot; St. Xavier's College Canteen, Dhobi Talao</p>
   </div>
@@ -15,7 +17,7 @@
     <a href="index.html">Home</a>
     <a href="register.html">Register</a>
     <a href="login.html">Login</a>
-    <a href="donor.html">Donor</a>
+    <a href="donor.html" class="active">Donor</a>
     <a href="recipient.html">Recipient</a>
     <a href="map.html">Map</a>
   </div>
@@ -47,6 +49,13 @@
       </p>
       <button class="btn" onclick="postFood()">Post food</button>
       <p id="message"></p>
+
+      <!-- filled by donor.js after the food is posted -->
+      <div id="rankBox" class="hidden">
+        <p><b>Shelters ranked for this food</b></p>
+        <table id="rankTable"></table>
+        <p class="caption">The offer goes to #1 first. If they pass, it moves to #2, then #3.</p>
+      </div>
     </div>
 
     <h2>Tonight's listings</h2>
@@ -60,11 +69,11 @@
         <th>Action</th>
       </tr>
     </table>
-    <p class="caption">Time left turns orange under 1 hour and red under 15 minutes.</p>
+    <p class="caption">Time left turns orange under 1 hour and red under 15 minutes. Food that is not collected in time is marked expired.</p>
   </div>
 
   <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
   <script src="data.js"></script>
