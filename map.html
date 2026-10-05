@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Map</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+  <div class="header">
+    <h1>FoodLoop</h1>
+    <p>Map of our kitchen and nearby shelters</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+  </div>
+
+  <div class="content">
+    <h2 id="mapTitle">St. Xavier's College Canteen, Dhobi Talao</h2>
+
+    <!-- a normal Google Maps embed; the JavaScript below changes its src -->
+    <iframe id="map" width="100%" height="380" style="border: 1px solid #cccccc; border-radius: 6px;"
+      src="https://maps.google.com/maps?q=18.9497,72.8296&z=14&output=embed"></iframe>
+
+    <p>
+      <button class="btn" onclick="showKitchen()">Show our kitchen</button>
+      <a id="directions" href="#" target="_blank"><button class="btn btn-grey">Get directions in Google Maps</button></a>
+    </p>
+
+    <h2>Shelters near our kitchen</h2>
+    <p>Distance is the straight-line distance plus 30% for roads. Time assumes 20 km/h in city traffic.</p>
+    <table id="shelterTable">
+      <tr>
+        <th>Shelter</th>
+        <th>Area</th>
+        <th>Distance</th>
+        <th>Drive time</th>
+        <th>Map</th>
+      </tr>
+    </table>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+    // show a place on the map by changing the iframe's src attribute
+    function showPlace(name, lat, lng) {
+      let url = "https://maps.google.com/maps?q=" + lat + "," + lng + "&z=14&output=embed";
+      document.getElementById("map").setAttribute("src", url);
+      document.getElementById("mapTitle").innerText = name;
+
+      // Google Maps directions from the kitchen to this place
+      let directions = "https://www.google.com/maps/dir/?api=1" +
+        "&origin=" + kitchen.lat + "," + kitchen.lng +
+        "&destination=" + lat + "," + lng;
+      document.getElementById("directions").setAttribute("href", directions);
+    }
+
+    function showKitchen() {
+      showPlace(kitchen.name + ", " + kitchen.area, kitchen.lat, kitchen.lng);
+    }
+
+    // fill the table: one row per shelter, with distance and drive time
+    let table = document.getElementById("shelterTable");
+    for (let i = 0; i < shelters.length; i++) {
+      let s = shelters[i];
+      let km = distanceKm(kitchen.lat, kitchen.lng, s.lat, s.lng);
+
+      let row = document.createElement("tr");
+      row.innerHTML =
+        "<td>" + s.name + "</td>" +
+        "<td>" + s.area + "</td>" +
+        "<td>" + km + " km</td>" +
+        "<td>" + driveMinutes(km) + " min</td>" +
+        "<td><button class='btn' onclick='showShelter(" + i + ")'>Show on map</button></td>";
+      table.append(row);
+    }
+
+    function showShelter(i) {
+      showPlace(shelters[i].name + ", " + shelters[i].area, shelters[i].lat, shelters[i].lng);
+    }
+
+    // start with the kitchen shown
+    showKitchen();
+  </script>
+
+</body>
+</html>

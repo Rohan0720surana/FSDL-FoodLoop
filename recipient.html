@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Recipient Dashboard</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+  <div class="header">
+    <h1>FoodLoop</h1>
+    <p>Recipient dashboard &middot; Sneh Sadan Balgram, Dadar</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+  </div>
+
+  <div class="content">
+    <h2>Today's capacity</h2>
+    <div class="box">
+      <p id="capacityText"></p>
+    </div>
+
+    <h2>Food offered to you</h2>
+    <p>Offers are sorted by match score, best first. You can accept or pass.</p>
+    <table id="offerTable">
+      <tr>
+        <th>Rank</th>
+        <th>Kitchen</th>
+        <th>Food</th>
+        <th>Meals</th>
+        <th>Distance</th>
+        <th>Score</th>
+        <th>Action</th>
+      </tr>
+    </table>
+
+    <h2>How the score is worked out</h2>
+    <p>
+      Score = 35% time + 25% distance + 20% capacity + 10% food type + 10% reliability.
+      A kitchen that is too far to reach before the deadline is not offered at all.
+    </p>
+
+    <h2>Today's pickup</h2>
+    <div class="box">
+      <p>
+        <b>Collect from:</b> St. Xavier's College Canteen, Dhobi Talao<br>
+        <b>Food:</b> 22 meals of paneer tikka trays<br>
+        <b>Handover code:</b> 4827 (show this at the kitchen)
+      </p>
+      <a href="map.html"><button class="btn">See it on the map</button></a>
+    </div>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+    // capacity: 32 of 80 meals already used today
+    let capacity = 80;
+    let used = 32;
+    let left = capacity - used;
+    document.getElementById("capacityText").innerHTML =
+      "Room left today: <b>" + left + " meals</b> (" + used + " of " + capacity + " used)";
+
+    // offers sent to Sneh Sadan (score is out of 100)
+    let offers = [
+      { kitchen: "Yazdani Irani Bakery", area: "Fort", food: "Bun-maska + pastries", meals: 30, km: 11.9, score: 66 },
+      { kitchen: "St. Xavier's College Canteen", area: "Dhobi Talao", food: "Veg biryani + dal", meals: 48, km: 10.1, score: 84 },
+      { kitchen: "Konkan Spice Caterers", area: "Powai", food: "Vegetable sandwiches", meals: 18, km: 16.7, score: 59 },
+      { kitchen: "Regency Banquet Hall", area: "Andheri West", food: "Paneer tikka trays", meals: 45, km: 14.6, score: 65 }
+    ];
+
+    // sort highest score first
+    offers.sort(function (a, b) {
+      return b.score - a.score;
+    });
+
+    // build the table with a for loop
+    let table = document.getElementById("offerTable");
+    for (let i = 0; i < offers.length; i++) {
+      let row = document.createElement("tr");
+      row.innerHTML =
+        "<td>" + (i + 1) + "</td>" +
+        "<td>" + offers[i].kitchen + ", " + offers[i].area + "</td>" +
+        "<td>" + offers[i].food + "</td>" +
+        "<td>" + offers[i].meals + "</td>" +
+        "<td>" + offers[i].km + " km</td>" +
+        "<td><b>" + offers[i].score + "</b> / 100</td>" +
+        "<td>" +
+          "<button class='btn' onclick='accept(this)'>Accept</button> " +
+          "<button class='btn btn-grey' onclick='pass(this)'>Pass</button>" +
+        "</td>";
+      table.append(row);
+    }
+
+    // Accept: highlight the row and replace the buttons with a message
+    function accept(button) {
+      let row = button.parentElement.parentElement;
+      row.classList.add("accepted-row");
+      button.parentElement.innerHTML = "<span class='green-text'>Accepted - send your staff</span>";
+    }
+
+    // Pass: grey out the row. The offer goes to the next shelter.
+    function pass(button) {
+      let row = button.parentElement.parentElement;
+      row.classList.add("passed-row");
+      button.parentElement.innerText = "Passed - offered to the next shelter";
+    }
+  </script>
+
+</body>
+</html>

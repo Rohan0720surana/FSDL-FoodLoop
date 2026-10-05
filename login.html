@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Login</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+  <div class="header">
+    <h1>FoodLoop</h1>
+    <p>Log in to your account</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+  </div>
+
+  <div class="content">
+    <h2>Login</h2>
+
+    <form onsubmit="return login()">
+      <p>
+        Email:<br>
+        <input type="text" id="email" placeholder="Enter your email">
+      </p>
+      <p>
+        Password:<br>
+        <input type="password" id="password" placeholder="Enter your password">
+      </p>
+      <p>
+        Log in as:
+        <input type="radio" name="role" value="donor" checked> Donor
+        <input type="radio" name="role" value="recipient"> Recipient
+      </p>
+      <input type="submit" value="Login" class="btn">
+    </form>
+
+    <p>New organisation? <a href="register.html">Register here</a></p>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+  </div>
+
+  <script>
+    function login() {
+      let email = document.getElementById("email").value;
+      let password = document.getElementById("password").value;
+      let role = document.querySelector('input[name="role"]:checked').value;
+
+      if (email == "" || password == "") {
+        alert("Please enter your email and password.");
+        return false;
+      }
+
+      // no real accounts yet (no backend), so we just open the right dashboard
+      if (role == "donor") {
+        window.location.href = "donor.html";
+      } else {
+        window.location.href = "recipient.html";
+      }
+      return false; // stop the form from reloading the page
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Register</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+  <div class="header">
+    <h1>FoodLoop</h1>
+    <p>Register your organisation</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+  </div>
+
+  <div class="content">
+    <h2>Registration Form</h2>
+
+    <form onsubmit="return validateForm()">
+      <table>
+        <tr>
+          <td>I am a:</td>
+          <td>
+            <input type="radio" name="role" value="Donor"> Donor (kitchen)
+            <input type="radio" name="role" value="Recipient"> Recipient (shelter / NGO)
+          </td>
+        </tr>
+        <tr>
+          <td>Organisation name:</td>
+          <td><input type="text" id="orgName" placeholder="e.g. St. Xavier's College Canteen"></td>
+        </tr>
+        <tr>
+          <td>Type:</td>
+          <td>
+            <select id="orgType">
+              <option value="">-- Select --</option>
+              <option>Restaurant</option>
+              <option>College canteen</option>
+              <option>Banquet hall</option>
+              <option>NGO</option>
+              <option>Shelter</option>
+              <option>Community kitchen</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td>Contact person:</td>
+          <td><input type="text" id="contact" placeholder="Enter full name"></td>
+        </tr>
+        <tr>
+          <td>Mobile number:</td>
+          <td><input type="text" id="mobile" placeholder="Enter 10 digit mobile number"></td>
+        </tr>
+        <tr>
+          <td>Email:</td>
+          <td><input type="text" id="email" placeholder="Enter your email address"></td>
+        </tr>
+        <tr>
+          <td>Address:</td>
+          <td><textarea id="address" rows="3" placeholder="Enter full address"></textarea></td>
+        </tr>
+        <tr>
+          <td>Password:</td>
+          <td><input type="password" id="password" placeholder="At least 6 characters"></td>
+        </tr>
+        <tr>
+          <td>Confirm password:</td>
+          <td><input type="password" id="confirmPassword" placeholder="Re-enter your password"></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><input type="checkbox" id="terms"> I agree that only safe, labelled food will be shared</td>
+        </tr>
+      </table>
+
+      <input type="submit" value="Register" class="btn">
+      <input type="reset" value="Reset" class="btn btn-grey">
+    </form>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+  </div>
+
+  <script>
+    function validateForm() {
+      // get the values
+      let role = document.querySelector('input[name="role"]:checked');
+      let orgName = document.getElementById("orgName").value;
+      let orgType = document.getElementById("orgType").value;
+      let contact = document.getElementById("contact").value;
+      let mobile = document.getElementById("mobile").value;
+      let email = document.getElementById("email").value;
+      let address = document.getElementById("address").value;
+      let password = document.getElementById("password").value;
+      let confirmPassword = document.getElementById("confirmPassword").value;
+      let terms = document.getElementById("terms").checked;
+
+      // check every field is filled
+      if (role == null || orgName == "" || orgType == "" || contact == "" ||
+          mobile == "" || email == "" || address == "" || password == "") {
+        alert("Please fill all the fields.");
+        return false;
+      }
+
+      // mobile number: exactly 10 digits, starting with 6, 7, 8 or 9
+      let mobilePattern = /^[6-9][0-9]{9}$/;
+      if (!mobilePattern.test(mobile)) {
+        alert("Please enter a valid 10 digit mobile number.");
+        return false;
+      }
+
+      // email: something@something.something
+      let emailPattern = /^[^ @]+@[^ @]+\.[a-z]+$/;
+      if (!emailPattern.test(email)) {
+        alert("Please enter a valid email address.");
+        return false;
+      }
+
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters.");
+        return false;
+      }
+
+      if (password != confirmPassword) {
+        alert("Passwords do not match.");
+        return false;
+      }
+
+      if (!terms) {
+        alert("Please accept the food safety agreement.");
+        return false;
+      }
+
+      alert("Thank you, " + orgName + "! You are registered as a " + role.value + ".");
+      return true;
+    }
+  </script>
+
+</body>
+</html>

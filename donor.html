@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Donor Dashboard</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+  <div class="header">
+    <h1>FoodLoop</h1>
+    <p>Donor dashboard &middot; St. Xavier's College Canteen, Dhobi Talao</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+  </div>
+
+  <div class="content">
+    <p id="greeting"></p>
+
+    <h2>Post surplus food</h2>
+    <div class="box">
+      <p>
+        Food name:<br>
+        <input type="text" id="food" placeholder="e.g. Veg biryani + dal">
+      </p>
+      <p>
+        Food type:<br>
+        <select id="type">
+          <option>Veg</option>
+          <option>Non-veg</option>
+          <option>Bakery</option>
+        </select>
+      </p>
+      <p>
+        Quantity (meals):<br>
+        <input type="number" id="quantity" min="1" placeholder="e.g. 40">
+      </p>
+      <p>
+        Can be picked up for the next (hours):<br>
+        <input type="number" id="hours" min="1" max="6" placeholder="e.g. 2">
+      </p>
+      <button class="btn" onclick="postFood()">Post food</button>
+      <p id="message"></p>
+    </div>
+
+    <h2>Tonight's listings</h2>
+    <table id="listingTable">
+      <tr>
+        <th>Food</th>
+        <th>Type</th>
+        <th>Meals</th>
+        <th>Time left</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </table>
+    <p class="caption">Time left turns orange under 1 hour and red under 15 minutes.</p>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project
+  </div>
+
+  <script src="data.js"></script>
+  <script src="donor.js"></script>
+</body>
+</html>

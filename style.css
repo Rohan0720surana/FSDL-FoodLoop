@@ -1,0 +1,153 @@
+/* FoodLoop - one external style sheet used by every page */
+
+body {
+  margin: 0;
+  font-family: Arial, Verdana, sans-serif;
+  background-color: #f4f4f4;
+  color: #222222;
+}
+
+/* ---------- header and navigation bar ---------- */
+.header {
+  background-color: #2e7d32;
+  color: white;
+  padding: 15px 30px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+}
+
+.navbar {
+  background-color: #1b5e20;
+  padding: 10px 30px;
+}
+
+.navbar a {
+  color: white;
+  text-decoration: none;
+  margin-right: 20px;
+  font-weight: bold;
+}
+
+/* ---------- main content ---------- */
+.content {
+  width: 900px;
+  margin: 20px auto;
+  background-color: white;
+  padding: 20px 30px;
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+}
+
+h2 {
+  color: #2e7d32;
+  border-bottom: 2px solid #2e7d32;
+  padding-bottom: 5px;
+}
+
+.box {
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+  background-color: #fafafa;
+}
+
+.photo {
+  width: 420px;
+  border-radius: 6px;
+}
+
+.caption {
+  font-size: 13px;
+  color: #666666;
+}
+
+/* ---------- tables ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+
+th,
+td {
+  border: 1px solid #cccccc;
+  padding: 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #e8f5e9;
+}
+
+/* ---------- forms ---------- */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+select,
+textarea {
+  width: 300px;
+  padding: 6px;
+  border: 1px solid #aaaaaa;
+  border-radius: 4px;
+  font-family: Arial, Verdana, sans-serif;
+}
+
+.btn {
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-grey {
+  background-color: #777777;
+}
+
+.btn-red {
+  background-color: #c62828;
+}
+
+/* ---------- status colours (added with classList) ---------- */
+.green-text {
+  color: #2e7d32;
+  font-weight: bold;
+}
+
+.orange-text {
+  color: #e65100;
+  font-weight: bold;
+}
+
+.red-text {
+  color: #c62828;
+  font-weight: bold;
+}
+
+.accepted-row {
+  background-color: #e8f5e9;
+}
+
+.passed-row {
+  color: #999999;
+}
+
+/* ---------- footer ---------- */
+.footer {
+  background-color: #333333;
+  color: #dddddd;
+  text-align: center;
+  padding: 12px;
+  font-size: 13px;
+}

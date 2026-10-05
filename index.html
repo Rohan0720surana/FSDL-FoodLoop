@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Home</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+  <div class="header">
+    <h1>FoodLoop</h1>
+    <p>Surplus food from Mumbai's kitchens, matched to shelters that can collect it in time</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+  </div>
+
+  <div class="content">
+
+    <h2>What is FoodLoop?</h2>
+    <p>
+      Every night, restaurants, college canteens and banquet halls in Mumbai have good food left over.
+      At the same time, shelters and community kitchens nearby need meals.
+      <b>FoodLoop</b> connects them. A kitchen posts its leftover food with a <b>pickup deadline</b>,
+      and FoodLoop offers it to the nearby organisation that can collect it before the deadline.
+    </p>
+
+    <img src="images/kitchen-packing.jpg" alt="Kitchen staff packing leftover food" class="photo">
+    <p class="caption">Kitchen staff packing leftover food at closing time.</p>
+
+    <h2>How it works</h2>
+    <ol>
+      <li>A kitchen (donor) posts the food, the quantity and the pickup deadline.</li>
+      <li>FoodLoop gives every nearby shelter (recipient) a score and ranks them.</li>
+      <li>The top-ranked shelter gets the offer. If they pass, it goes to the next one.</li>
+      <li>The shelter's own staff come and collect the food. No delivery rider is needed.</li>
+    </ol>
+
+    <h2>How the score is calculated</h2>
+    <table>
+      <tr>
+        <th>Factor</th>
+        <th>Weight</th>
+        <th>Meaning</th>
+      </tr>
+      <tr><td>Time</td><td>35%</td><td>Can they reach the kitchen before the deadline?</td></tr>
+      <tr><td>Distance</td><td>25%</td><td>How close are they?</td></tr>
+      <tr><td>Capacity</td><td>20%</td><td>Do they have room for this much food?</td></tr>
+      <tr><td>Food type</td><td>10%</td><td>Do they accept veg / non-veg?</td></tr>
+      <tr><td>Reliability</td><td>10%</td><td>Did they collect on time before?</td></tr>
+    </table>
+
+    <h2>Our numbers so far</h2>
+    <div class="box">
+      <p id="stats"></p>
+    </div>
+
+    <h2>Who can use it?</h2>
+    <ul>
+      <li><b>Donors:</b> restaurants, hotels, canteens, caterers, banquet halls</li>
+      <li><b>Recipients:</b> NGOs, shelters, orphanages, old-age homes, community kitchens</li>
+    </ul>
+
+    <p>
+      <a href="register.html"><button class="btn">Register your organisation</button></a>
+    </p>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
+  </div>
+
+  <script>
+    // numbers shown on the home page
+    let meals = 2847;
+    let organisations = 85;
+    let averageMinutes = 8.4;
+
+    document.getElementById("stats").innerHTML =
+      "Meals redistributed: <b>" + meals + "</b><br>" +
+      "Organisations on FoodLoop: <b>" + organisations + "</b><br>" +
+      "Average time to find a match: <b>" + averageMinutes + " minutes</b>";
+  </script>
+
+</body>
+</html>
