@@ -5,6 +5,7 @@ const connectDB = require('./config/db');
 const authRoutes          = require('./routes/authRoutes');
 const organisationRoutes  = require('./routes/organisationRoutes');
 const listingRoutes       = require('./routes/listingRoutes');
+const offerRoutes         = require('./routes/offerRoutes');
 
 const app = express();
 
@@ -24,8 +25,11 @@ app.use('/api/auth', authRoutes);
 // Organisation CRUD
 app.use('/api/organisations', organisationRoutes);
 
-// Listing CRUD
+// Listing CRUD + matching
 app.use('/api/listings', listingRoutes);
+
+// Offer handling (recipient accept / pass)
+app.use('/api/offers', offerRoutes);
 
 // ── Start server ───────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
