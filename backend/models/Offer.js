@@ -25,6 +25,17 @@ const OfferSchema = new mongoose.Schema(
       enum: ['PENDING', 'ACCEPTED', 'PASSED', 'EXPIRED'],
       default: 'PENDING',
     },
+    active: {
+      type: Boolean,
+      default: false,
+    },
+    breakdown: {
+      time: { type: Number },
+      proximity: { type: Number },
+      capacity: { type: Number },
+      foodType: { type: Number },
+      reliability: { type: Number },
+    },
   },
   { timestamps: true }
 );

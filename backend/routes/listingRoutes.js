@@ -7,11 +7,15 @@ const {
   getListingById,
   updateListing,
   deleteListing,
+  matchListing,
 } = require('../controllers/listingController');
 const { protect } = require('../middleware/authMiddleware');
 
 // POST   /api/listings           (protected)
 router.post('/', protect, createListing);
+
+// POST   /api/listings/:id/match (protected)
+router.post('/:id/match', protect, matchListing);
 
 // GET    /api/listings            (public)
 router.get('/', getAllListings);
