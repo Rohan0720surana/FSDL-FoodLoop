@@ -4,13 +4,14 @@
   <title>FoodLoop - Donor Dashboard</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
+  <script src="api.js"></script>
 </head>
 <body>
 
   <div class="header">
     <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
-    <p>Donor dashboard &middot; St. Xavier's College Canteen, Dhobi Talao</p>
+    <p>Donor dashboard &middot; <span id="headerOrg">Loading...</span></p>
   </div>
 
   <div class="navbar">
@@ -23,7 +24,10 @@
   </div>
 
   <div class="content">
-    <p id="greeting"></p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <p id="greeting" style="margin: 0; font-size: 16px;"></p>
+      <button class="btn btn-grey" onclick="logout()">Logout</button>
+    </div>
 
     <h2>Post surplus food</h2>
     <div class="box">
@@ -34,9 +38,10 @@
       <p>
         Food type:<br>
         <select id="type">
-          <option>Veg</option>
-          <option>Non-veg</option>
-          <option>Bakery</option>
+          <option value="VEG">Veg</option>
+          <option value="NON_VEG">Non-veg</option>
+          <option value="BAKERY">Bakery</option>
+          <option value="PACKAGED">Packaged</option>
         </select>
       </p>
       <p>
@@ -45,12 +50,12 @@
       </p>
       <p>
         Can be picked up for the next (hours):<br>
-        <input type="number" id="hours" min="1" max="6" placeholder="e.g. 2">
+        <input type="number" id="hours" min="0.5" max="24" step="any" placeholder="e.g. 2">
       </p>
-      <button class="btn" onclick="postFood()">Post food</button>
+      <button class="btn" id="postBtn" onclick="postFood()">Post food</button>
       <p id="message"></p>
 
-      <!-- filled by donor.js after the food is posted -->
+      <!-- filled by donor.js after the food is posted and matched -->
       <div id="rankBox" class="hidden">
         <p><b>Shelters ranked for this food</b></p>
         <table id="rankTable"></table>
@@ -58,25 +63,53 @@
       </div>
     </div>
 
-    <h2>Tonight's listings</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>My listings</h2>
+      <button class="btn btn-grey" id="refreshBtn" onclick="refreshAll()">Refresh</button>
+    </div>
+    <p id="listingsMessage"></p>
     <table id="listingTable">
-      <tr>
-        <th>Food</th>
-        <th>Type</th>
-        <th>Meals</th>
-        <th>Time left</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Type</th>
+          <th>Quantity</th>
+          <th>Deadline / Time left</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="listingTableBody"></tbody>
     </table>
     <p class="caption">Time left turns orange under 1 hour and red under 15 minutes. Food that is not collected in time is marked expired.</p>
+
+    <!-- filled when a listing is clicked or View offers is selected -->
+    <div id="offersSection" class="box hidden">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="margin: 0; color: #2e7d32;">Offers for: <span id="offersListingTitle"></span></h3>
+        <button class="btn btn-grey" onclick="closeOffers()">Close</button>
+      </div>
+      <p id="offersMessage"></p>
+      <table id="offersTable">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Shelter</th>
+            <th>Locality</th>
+            <th>Score</th>
+            <th>Status</th>
+            <th>Active</th>
+          </tr>
+        </thead>
+        <tbody id="offersTableBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="footer">
     &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
-  <script src="data.js"></script>
   <script src="donor.js"></script>
 </body>
 </html>

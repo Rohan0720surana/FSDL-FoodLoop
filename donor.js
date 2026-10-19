@@ -1,178 +1,398 @@
-// donor.js - the donor dashboard: post food, see listings, countdowns
+// donor.js - Donor dashboard connected to FoodLoop API
 
-// greeting based on the time of day (Date object)
-let hour = new Date().getHours();
-let greeting = "Good evening";
-if (hour < 12) {
-  greeting = "Good morning";
-} else if (hour < 17) {
-  greeting = "Good afternoon";
-}
-document.getElementById("greeting").innerHTML = "<b>" + greeting + ", St. Xavier's Canteen!</b>";
+// ── 1. Page guard & Authentication ───────────────────────────────────────────
+const token = getToken();
+const org = getOrg();
 
-// listings already posted tonight (deadline = now + some minutes)
-let now = Date.now();
-let listings = [
-  { food: "Chicken curry + rice", type: "Non-veg", meals: 65, deadline: now + 9 * 60000, status: "Offered to Kripa Foundation" },
-  { food: "Paneer tikka trays", type: "Veg", meals: 22, deadline: now + 47 * 60000, status: "Accepted by Sneh Sadan" },
-  { food: "Veg biryani + dal", type: "Veg", meals: 48, deadline: now + 134 * 60000, status: "Offered to Sneh Sadan" }
-];
-
-// add one row to the table using createElement and append
-function addRow(listing, index) {
-  let table = document.getElementById("listingTable");
-  let row = document.createElement("tr");
-
-  row.innerHTML =
-    "<td>" + listing.food + "</td>" +
-    "<td>" + listing.type + "</td>" +
-    "<td>" + listing.meals + "</td>" +
-    "<td id='time" + index + "'></td>" +
-    "<td id='status" + index + "'>" + listing.status + "</td>" +
-    "<td id='action" + index + "'><button class='btn btn-red' onclick='cancelListing(this)'>Cancel</button></td>";
-
-  table.append(row);
+if (!token || !org || org.type !== "DONOR") {
+  window.location.href = "login.html";
 }
 
-// show the listings that already exist
-for (let i = 0; i < listings.length; i++) {
-  addRow(listings[i], i);
+function logout() {
+  clearSession();
+  window.location.href = "login.html";
 }
 
-// update every "time left" cell - runs every second
-function updateTimes() {
-  for (let i = 0; i < listings.length; i++) {
-    let cell = document.getElementById("time" + i);
-    if (cell == null) continue;           // that listing was cancelled
-    if (listings[i].expired) continue;    // already marked expired
+// Display organisation name and greeting
+if (org) {
+  const headerOrg = document.getElementById("headerOrg");
+  if (headerOrg) {
+    headerOrg.innerText = org.name + (org.locality ? ", " + org.locality : "");
+  }
 
-    let msLeft = listings[i].deadline - Date.now();
-    cell.innerText = formatTime(msLeft);
+  const hour = new Date().getHours();
+  let timeGreeting = "Good evening";
+  if (hour < 12) {
+    timeGreeting = "Good morning";
+  } else if (hour < 17) {
+    timeGreeting = "Good afternoon";
+  }
 
-    // deadline passed: grey out the row, change the status, remove the Cancel button
+  const greetingEl = document.getElementById("greeting");
+  if (greetingEl) {
+    greetingEl.innerHTML = "<b>" + timeGreeting + ", " + escapeHtml(org.name) + "!</b>";
+  }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentListings = [];
+let currentSelectedListingId = null;
+let currentSelectedListingTitle = "";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatTime(ms) {
+  if (ms <= 0) return "Expired";
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  let s = totalSeconds % 60;
+  if (h > 0) return h + "h " + m + "m";
+  if (s < 10) s = "0" + s;
+  return m + "m " + s + "s";
+}
+
+// ── 2 & 3. Post Food & Match Listing ──────────────────────────────────────────
+async function postFood() {
+  const foodInput = document.getElementById("food");
+  const typeInput = document.getElementById("type");
+  const quantityInput = document.getElementById("quantity");
+  const hoursInput = document.getElementById("hours");
+  const messageEl = document.getElementById("message");
+  const postBtn = document.getElementById("postBtn");
+  const rankBox = document.getElementById("rankBox");
+
+  messageEl.innerText = "";
+  messageEl.className = "";
+  rankBox.classList.add("hidden");
+
+  const food = foodInput.value.trim();
+  const foodType = typeInput.value;
+  const quantity = Number(quantityInput.value);
+  const hours = parseFloat(hoursInput.value);
+
+  // Client-side validations
+  if (!food) {
+    messageEl.innerText = "Please enter the food name/description.";
+    messageEl.className = "red-text";
+    return;
+  }
+  if (isNaN(quantity) || quantity <= 0) {
+    messageEl.innerText = "Please enter a valid quantity of meals (greater than 0).";
+    messageEl.className = "red-text";
+    return;
+  }
+  if (isNaN(hours) || hours <= 0) {
+    messageEl.innerText = "Please enter how many hours the food can be picked up for.";
+    messageEl.className = "red-text";
+    return;
+  }
+  if (hours < 0.5) {
+    messageEl.innerText = "Pickup deadline must be at least 30 minutes (0.5 hours) from now.";
+    messageEl.className = "red-text";
+    return;
+  }
+
+  // Calculate deadline
+  const pickupDeadline = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+
+  // Disable button and show loading state
+  postBtn.disabled = true;
+  postBtn.innerText = "Posting listing...";
+  messageEl.innerText = "Creating surplus food listing...";
+  messageEl.className = "";
+
+  const createRes = await apiFetch("/listings", {
+    method: "POST",
+    body: JSON.stringify({
+      donor: org._id,
+      description: food,
+      foodType: foodType,
+      quantity: quantity,
+      pickupDeadline: pickupDeadline,
+    }),
+  });
+
+  if (!createRes.ok) {
+    postBtn.disabled = false;
+    postBtn.innerText = "Post food";
+    messageEl.innerText = (createRes.data && createRes.data.message)
+      ? createRes.data.message
+      : "Failed to create listing.";
+    messageEl.className = "red-text";
+    return;
+  }
+
+  const createdListing = createRes.data;
+
+  // Now trigger matching
+  postBtn.innerText = "Matching with shelters...";
+  messageEl.innerText = "Listing created. Finding eligible shelters and calculating route scores...";
+
+  const matchRes = await apiFetch("/listings/" + createdListing._id + "/match", {
+    method: "POST",
+  });
+
+  postBtn.disabled = false;
+  postBtn.innerText = "Post food";
+
+  if (!matchRes.ok) {
+    messageEl.innerText = "Listing posted, but matching returned an error: " +
+      ((matchRes.data && matchRes.data.message) ? matchRes.data.message : "Server error");
+    messageEl.className = "orange-text";
+    loadMyListings();
+    return;
+  }
+
+  // Reset form inputs
+  foodInput.value = "";
+  quantityInput.value = "";
+  hoursInput.value = "";
+
+  const offers = matchRes.data.offers || [];
+  if (offers.length === 0) {
+    messageEl.innerText = matchRes.data.message || "No recipient can take this listing right now.";
+    messageEl.className = "orange-text";
+    rankBox.classList.add("hidden");
+  } else {
+    const firstRecipient = offers[0].recipient ? offers[0].recipient.name : "top-ranked shelter";
+    messageEl.innerText = "Posted! Top offer sent to " + firstRecipient + ".";
+    messageEl.className = "green-text";
+
+    // Populate rankTable
+    const rankTable = document.getElementById("rankTable");
+    rankTable.innerHTML = `
+      <tr>
+        <th>Rank</th>
+        <th>Shelter</th>
+        <th>Locality</th>
+        <th>Distance</th>
+        <th>Drive time</th>
+        <th>Score</th>
+      </tr>
+    `;
+
+    offers.forEach(function (offer, index) {
+      const tr = document.createElement("tr");
+      if (index === 0) {
+        tr.classList.add("accepted-row");
+      }
+      const shelterName = offer.recipient ? escapeHtml(offer.recipient.name) : "Unknown";
+      const locality = offer.recipient && offer.recipient.locality ? escapeHtml(offer.recipient.locality) : "-";
+      const distance = offer.km != null ? offer.km + " km" : "-";
+      const driveTime = offer.driveMinutes != null ? offer.driveMinutes + " min" : "-";
+
+      tr.innerHTML = `
+        <td>#${offer.rank}</td>
+        <td>${shelterName}</td>
+        <td>${locality}</td>
+        <td>${distance}</td>
+        <td>${driveTime}</td>
+        <td><b>${offer.score}</b> / 100</td>
+      `;
+      rankTable.appendChild(tr);
+    });
+
+    rankBox.classList.remove("hidden");
+  }
+
+  // Reload the listings table
+  loadMyListings();
+}
+
+// ── 4. My Listings & Offers ───────────────────────────────────────────────────
+async function loadMyListings() {
+  const listingsMessage = document.getElementById("listingsMessage");
+  const tbody = document.getElementById("listingTableBody");
+
+  listingsMessage.innerText = "Loading listings...";
+  listingsMessage.className = "";
+
+  const res = await apiFetch("/listings/mine");
+
+  if (!res.ok) {
+    listingsMessage.innerText = (res.data && res.data.message)
+      ? res.data.message
+      : "Failed to load listings.";
+    listingsMessage.className = "red-text";
+    return;
+  }
+
+  currentListings = res.data || [];
+  listingsMessage.innerText = "";
+
+  tbody.innerHTML = "";
+
+  if (currentListings.length === 0) {
+    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No listings posted yet.</td></tr>";
+    return;
+  }
+
+  currentListings.forEach(function (listing, index) {
+    const tr = document.createElement("tr");
+    tr.id = "listing-row-" + listing._id;
+
+    const deadlineTime = new Date(listing.pickupDeadline).getTime();
+    const msLeft = deadlineTime - Date.now();
+
+    let deadlineDisplay = formatTime(msLeft);
+    let timeClass = "";
     if (msLeft <= 0) {
-      listings[i].expired = true;
-      cell.parentElement.classList.add("passed-row");
-      cell.classList.remove("green-text", "orange-text", "red-text");
-      document.getElementById("status" + i).innerText = "Expired - not collected";
-      document.getElementById("action" + i).innerText = "-";
-      continue;
+      deadlineDisplay = "Expired";
+      tr.classList.add("passed-row");
+    } else if (msLeft < 15 * 60000) {
+      timeClass = "red-text";
+    } else if (msLeft < 60 * 60000) {
+      timeClass = "orange-text";
+    } else {
+      timeClass = "green-text";
     }
 
-    // colour depends on how much time is left
+    const descEscaped = escapeHtml(listing.description);
+    const idEscaped = escapeHtml(listing._id);
+
+    tr.innerHTML = `
+      <td>${descEscaped}</td>
+      <td>${escapeHtml(listing.foodType)}</td>
+      <td>${listing.quantity} meals</td>
+      <td id="time-cell-${index}" class="${timeClass}">${deadlineDisplay}</td>
+      <td><span id="status-cell-${index}">${escapeHtml(listing.status)}</span></td>
+      <td>
+        <button class="btn" onclick="viewOffers('${idEscaped}', '${descEscaped}')">View offers</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateCountdowns() {
+  if (!currentListings || currentListings.length === 0) return;
+
+  currentListings.forEach(function (listing, index) {
+    const cell = document.getElementById("time-cell-" + index);
+    if (!cell) return;
+
+    const msLeft = new Date(listing.pickupDeadline).getTime() - Date.now();
+    cell.innerText = formatTime(msLeft);
+
     cell.classList.remove("green-text", "orange-text", "red-text");
-    if (msLeft < 15 * 60000) {
+    if (msLeft <= 0) {
+      cell.innerText = "Expired";
+      const row = cell.closest("tr");
+      if (row) row.classList.add("passed-row");
+    } else if (msLeft < 15 * 60000) {
       cell.classList.add("red-text");
     } else if (msLeft < 60 * 60000) {
       cell.classList.add("orange-text");
     } else {
       cell.classList.add("green-text");
     }
-  }
-}
-updateTimes();
-setInterval(updateTimes, 1000);
-
-// Cancel button: remove that row from the table
-function cancelListing(button) {
-  if (confirm("Cancel this listing?")) {
-    button.parentElement.parentElement.remove();
-  }
-}
-
-// Finding the best shelter "takes time", so we use a Promise.
-// It waits 2 seconds (like asking a server), scores every shelter
-// and gives back the list sorted best first.
-function findBestShelter(meals, type, minutesLeft) {
-  return new Promise(function (resolve, reject) {
-    setTimeout(function () {
-      let ranked = [];
-      for (let i = 0; i < shelters.length; i++) {
-        let score = matchScore(shelters[i], meals, type, minutesLeft);
-        if (score > 0) {
-          ranked.push({ shelter: shelters[i], score: score });
-        }
-      }
-      ranked.sort(function (a, b) {
-        return b.score - a.score;
-      });
-
-      if (ranked.length == 0) {
-        reject("No shelter can collect this food in time. Try a longer pickup time or fewer meals.");
-      } else {
-        resolve(ranked);
-      }
-    }, 2000);
   });
 }
 
-// show the top 3 shelters in a small table under the form
-function showRanking(ranked) {
-  let table = document.getElementById("rankTable");
-  table.innerHTML = "<tr><th>Rank</th><th>Shelter</th><th>Distance</th><th>Drive time</th><th>Score</th></tr>";
+// Run countdown timer every second
+setInterval(updateCountdowns, 1000);
 
-  for (let i = 0; i < ranked.length && i < 3; i++) {
-    let s = ranked[i].shelter;
-    let km = distanceKm(kitchen.lat, kitchen.lng, s.lat, s.lng);
-    let row = document.createElement("tr");
-    if (i == 0) {
-      row.classList.add("accepted-row");
+// View offers for a specific listing
+async function viewOffers(listingId, listingTitle) {
+  currentSelectedListingId = listingId;
+  currentSelectedListingTitle = listingTitle;
+
+  const section = document.getElementById("offersSection");
+  const titleEl = document.getElementById("offersListingTitle");
+  const messageEl = document.getElementById("offersMessage");
+  const tbody = document.getElementById("offersTableBody");
+
+  titleEl.innerText = listingTitle;
+  messageEl.innerText = "Loading offers...";
+  messageEl.className = "";
+  tbody.innerHTML = "";
+  section.classList.remove("hidden");
+
+  // Scroll smoothly to offers section
+  section.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const res = await apiFetch("/listings/" + listingId + "/offers");
+
+  if (!res.ok) {
+    messageEl.innerText = (res.data && res.data.message)
+      ? res.data.message
+      : "Failed to load offers.";
+    messageEl.className = "red-text";
+    return;
+  }
+
+  const offers = res.data || [];
+  messageEl.innerText = "";
+
+  if (offers.length === 0) {
+    messageEl.innerText = "No offers found for this listing.";
+    messageEl.className = "orange-text";
+    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No offers recorded.</td></tr>";
+    return;
+  }
+
+  offers.forEach(function (offer) {
+    const tr = document.createElement("tr");
+
+    if (offer.status === "ACCEPTED") {
+      tr.classList.add("accepted-row");
+    } else if (offer.status === "PASSED" || offer.status === "EXPIRED") {
+      tr.classList.add("passed-row");
     }
-    row.innerHTML =
-      "<td>#" + (i + 1) + "</td>" +
-      "<td>" + s.name + ", " + s.area + "</td>" +
-      "<td>" + km + " km</td>" +
-      "<td>" + driveMinutes(km) + " min</td>" +
-      "<td><b>" + ranked[i].score + "</b> / 100</td>";
-    table.append(row);
-  }
-  document.getElementById("rankBox").classList.remove("hidden");
+
+    const shelterName = offer.recipient ? escapeHtml(offer.recipient.name) : "Unknown";
+    const locality = offer.recipient && offer.recipient.locality ? escapeHtml(offer.recipient.locality) : "-";
+    const activeDisplay = offer.active
+      ? "<span class='green-text'><b>Active</b></span>"
+      : "No";
+
+    tr.innerHTML = `
+      <td>#${offer.rank}</td>
+      <td>${shelterName}</td>
+      <td>${locality}</td>
+      <td><b>${offer.score}</b> / 100</td>
+      <td><b>${escapeHtml(offer.status)}</b></td>
+      <td>${activeDisplay}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-// "Post food" button
-function postFood() {
-  let food = document.getElementById("food").value;
-  let type = document.getElementById("type").value;
-  let meals = Number(document.getElementById("quantity").value);
-  let hours = Number(document.getElementById("hours").value);
-  let message = document.getElementById("message");
-
-  // validation
-  if (food == "" || meals <= 0 || hours <= 0) {
-    alert("Please enter the food name, quantity and pickup time.");
-    return;
-  }
-  if (hours > 6) {
-    alert("Cooked food should be collected within 6 hours.");
-    return;
-  }
-
-  message.innerText = "Finding the best shelter...";
-  message.className = "";
-  document.getElementById("rankBox").classList.add("hidden");
-
-  findBestShelter(meals, type, hours * 60)
-    .then(function (ranked) {
-      let result = ranked[0];
-      let listing = {
-        food: food,
-        type: type,
-        meals: meals,
-        deadline: Date.now() + hours * 3600000,
-        status: "Offered to " + result.shelter.name + " (score " + result.score + ")"
-      };
-      listings.push(listing);
-      addRow(listing, listings.length - 1);
-      updateTimes();
-      message.innerText = "Posted! Offered to " + result.shelter.name + ", " + result.shelter.area + ".";
-      message.className = "green-text";
-      showRanking(ranked);
-      document.getElementById("food").value = "";
-      document.getElementById("quantity").value = "";
-      document.getElementById("hours").value = "";
-    })
-    .catch(function (error) {
-      message.innerText = error;
-      message.className = "red-text";
-    });
+function closeOffers() {
+  currentSelectedListingId = null;
+  currentSelectedListingTitle = "";
+  document.getElementById("offersSection").classList.add("hidden");
 }
+
+// ── 5. Refresh All ────────────────────────────────────────────────────────────
+async function refreshAll() {
+  const refreshBtn = document.getElementById("refreshBtn");
+  if (refreshBtn) {
+    refreshBtn.disabled = true;
+    refreshBtn.innerText = "Refreshing...";
+  }
+
+  await loadMyListings();
+
+  if (currentSelectedListingId) {
+    await viewOffers(currentSelectedListingId, currentSelectedListingTitle);
+  }
+
+  if (refreshBtn) {
+    refreshBtn.disabled = false;
+    refreshBtn.innerText = "Refresh";
+  }
+}
+
+// Initial load
+loadMyListings();

@@ -67,6 +67,42 @@ const getAllListings = async (req, res) => {
   }
 };
 
+// ── GET /api/listings/mine ─────────────────────────────────────────────────────
+// Protected. Returns the logged-in donor's listings, newest first.
+const getMyListings = async (req, res) => {
+  try {
+    const listings = await Listing.find({ donor: req.orgId })
+      .sort({ createdAt: -1 });
+    res.status(200).json(listings);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// ── GET /api/listings/:id/offers ───────────────────────────────────────────────
+// Protected. Returns offers for a listing sorted by rank, with recipient info.
+// 404 if the listing does not exist; 403 if the caller is not the listing's donor.
+const getListingOffers = async (req, res) => {
+  try {
+    const listing = await Listing.findById(req.params.id);
+    if (!listing) {
+      return res.status(404).json({ message: 'Listing not found.' });
+    }
+    if (listing.donor.toString() !== req.orgId) {
+      return res.status(403).json({ message: 'Not authorised — you do not own this listing.' });
+    }
+    const offers = await Offer.find({ listing: listing._id })
+      .sort({ rank: 1 })
+      .populate('recipient', 'name locality');
+    res.status(200).json(offers);
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid listing ID format.' });
+    }
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
 // ── GET /api/listings/:id ──────────────────────────────────────────────────────
 const getListingById = async (req, res) => {
   try {
@@ -235,6 +271,8 @@ const matchListing = async (req, res) => {
 module.exports = {
   createListing,
   getAllListings,
+  getMyListings,
+  getListingOffers,
   getListingById,
   updateListing,
   deleteListing,

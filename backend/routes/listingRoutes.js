@@ -4,6 +4,8 @@ const router = express.Router();
 const {
   createListing,
   getAllListings,
+  getMyListings,
+  getListingOffers,
   getListingById,
   updateListing,
   deleteListing,
@@ -16,6 +18,12 @@ router.post('/', protect, createListing);
 
 // POST   /api/listings/:id/match (protected)
 router.post('/:id/match', protect, matchListing);
+
+// GET    /api/listings/mine      (protected)
+router.get('/mine', protect, getMyListings);
+
+// GET    /api/listings/:id/offers (protected)
+router.get('/:id/offers', protect, getListingOffers);
 
 // GET    /api/listings            (public)
 router.get('/', getAllListings);
