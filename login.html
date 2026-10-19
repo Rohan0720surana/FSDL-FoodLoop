@@ -4,6 +4,7 @@
   <title>FoodLoop - Login</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
+  <script src="api.js"></script>
 </head>
 <body>
 
@@ -39,7 +40,7 @@
     </form>
 
     <div class="box">
-      <p><b>Demo accounts</b> (there is no database yet, so these are stored in an array)</p>
+      <p><b>Demo accounts</b> (register these via the Register page, or seed the database)</p>
       <table>
         <tr><th>Organisation</th><th>Email</th><th>Password</th><th>Opens</th></tr>
         <tr><td>St. Xavier's College Canteen</td><td>canteen@stxaviers.edu</td><td>canteen123</td><td>Donor page</td></tr>
@@ -55,42 +56,47 @@
   </div>
 
   <script>
-    // demo accounts (later these will come from the database)
-    let users = [
-      { email: "canteen@stxaviers.edu", password: "canteen123", role: "donor" },
-      { email: "contact@snehsadan.org", password: "shelter123", role: "recipient" }
-    ];
-
     function login() {
-      let email = document.getElementById("email").value;
-      let password = document.getElementById("password").value;
-      let error = document.getElementById("loginError");
+      var email    = document.getElementById("email").value.trim();
+      var password = document.getElementById("password").value;
+      var error    = document.getElementById("loginError");
 
-      if (email == "" || password == "") {
+      error.innerText = "";
+
+      if (email === "" || password === "") {
         error.innerText = "Please enter your email and password.";
         return false;
       }
 
-      // look for a user with this email and password
-      let user = null;
-      for (let i = 0; i < users.length; i++) {
-        if (users[i].email == email && users[i].password == password) {
-          user = users[i];
+      // Disable submit while the request is in flight
+      var submitBtn = document.querySelector("input[type='submit']");
+      submitBtn.disabled = true;
+      submitBtn.value = "Logging in...";
+
+      apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: email, password: password }),
+      }).then(function (result) {
+        submitBtn.disabled = false;
+        submitBtn.value = "Login";
+
+        if (result.ok) {
+          saveSession(result.data.token, result.data.organisation);
+          // Redirect based on org type returned by the API
+          if (result.data.organisation.type === "DONOR") {
+            window.location.href = "donor.html";
+          } else {
+            window.location.href = "recipient.html";
+          }
+        } else {
+          // Show the server's error message on the page (not an alert)
+          error.innerText = (result.data && result.data.message)
+            ? result.data.message
+            : "Login failed. Please try again.";
         }
-      }
+      });
 
-      if (user == null) {
-        error.innerText = "Wrong email or password.";
-        return false;
-      }
-
-      // open the right dashboard for this account
-      if (user.role == "donor") {
-        window.location.href = "donor.html";
-      } else {
-        window.location.href = "recipient.html";
-      }
-      return false; // stop the form from reloading the page
+      return false;  // always prevent native form submission
     }
   </script>
 

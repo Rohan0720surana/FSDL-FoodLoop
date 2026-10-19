@@ -4,6 +4,7 @@
   <title>FoodLoop - Register</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
+  <script src="api.js"></script>
 </head>
 <body>
 
@@ -25,7 +26,10 @@
   <div class="content">
     <h2>Registration Form</h2>
 
-    <form onsubmit="return validateForm()" onreset="clearErrors()">
+    <!-- server-side error banner -->
+    <p id="serverError" class="red-text"></p>
+
+    <form onsubmit="return submitRegister()" onreset="clearErrors()">
       <table>
         <tr>
           <td>I am a:</td>
@@ -83,9 +87,44 @@
           <td><input type="checkbox" id="terms"> I agree that only safe, labelled food will be shared
             <span class="error" id="err-terms"></span></td>
         </tr>
+        <!-- location fields (required by API) -->
+        <tr>
+          <td>Locality / area:</td>
+          <td><input type="text" id="locality" placeholder="e.g. Bandra West">
+            <span class="error" id="err-locality"></span></td>
+        </tr>
+        <tr>
+          <td>Latitude:</td>
+          <td><input type="number" id="lat" step="any" placeholder="e.g. 19.0596">
+            <span class="error" id="err-lat"></span></td>
+        </tr>
+        <tr>
+          <td>Longitude:</td>
+          <td><input type="number" id="lng" step="any" placeholder="e.g. 72.8295">
+            <span class="error" id="err-lng"></span></td>
+        </tr>
+        <!-- recipient-only fields (shown/hidden by JS) -->
+        <tbody id="recipientFields" style="display:none">
+          <tr>
+            <td>Food types accepted:</td>
+            <td><input type="text" id="foodTypesAccepted" placeholder="e.g. Cooked meals, Bread">
+              <small> (comma-separated)</small>
+              <span class="error" id="err-foodTypesAccepted"></span></td>
+          </tr>
+          <tr>
+            <td>Capacity per day (meals):</td>
+            <td><input type="number" id="capacityPerDay" min="0" placeholder="e.g. 100">
+              <span class="error" id="err-capacityPerDay"></span></td>
+          </tr>
+          <tr>
+            <td>Service radius (km):</td>
+            <td><input type="number" id="serviceRadiusKm" min="0" step="any" placeholder="e.g. 10">
+              <span class="error" id="err-serviceRadiusKm"></span></td>
+          </tr>
+        </tbody>
       </table>
 
-      <input type="submit" value="Register" class="btn">
+      <input type="submit" value="Register" class="btn" id="submitBtn">
       <input type="reset" value="Reset" class="btn btn-grey">
     </form>
   </div>
@@ -95,67 +134,130 @@
   </div>
 
   <script>
-    // show a red message under one field and give the field a red border
+    // ── UI helpers ──────────────────────────────────────────────────────────
+
+    // Show/hide recipient-only fields when the role radio changes
+    document.querySelectorAll('input[name="role"]').forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        var recipientFields = document.getElementById("recipientFields");
+        recipientFields.style.display = (this.value === "Recipient") ? "" : "none";
+      });
+    });
+
+    // Show a red message under a field and highlight it
     function showError(id, message) {
-      document.getElementById("err-" + id).innerText = message;
-      let field = document.getElementById(id);
-      if (field != null) {
-        field.classList.add("input-error");
-      }
+      var errEl = document.getElementById("err-" + id);
+      if (errEl) errEl.innerText = message;
+      var field = document.getElementById(id);
+      if (field) field.classList.add("input-error");
     }
 
-    // remove all old messages before checking again
+    // Clear all inline errors (called by onreset and before each submit)
     function clearErrors() {
-      let messages = document.querySelectorAll(".error");
-      for (let i = 0; i < messages.length; i++) {
-        messages[i].innerText = "";
-      }
-      let fields = document.querySelectorAll(".input-error");
-      for (let i = 0; i < fields.length; i++) {
-        fields[i].classList.remove("input-error");
-      }
+      document.querySelectorAll(".error").forEach(function (el) { el.innerText = ""; });
+      document.querySelectorAll(".input-error").forEach(function (el) { el.classList.remove("input-error"); });
+      document.getElementById("serverError").innerText = "";
     }
 
-    function validateForm() {
-      clearErrors();
-      let ok = true;
+    // ── Client-side validation ──────────────────────────────────────────────
 
-      // get the values
-      let role = document.querySelector('input[name="role"]:checked');
-      let orgName = document.getElementById("orgName").value;
-      let orgType = document.getElementById("orgType").value;
-      let contact = document.getElementById("contact").value;
-      let mobile = document.getElementById("mobile").value;
-      let email = document.getElementById("email").value;
-      let address = document.getElementById("address").value;
-      let password = document.getElementById("password").value;
-      let confirmPassword = document.getElementById("confirmPassword").value;
-      let terms = document.getElementById("terms").checked;
+    function validateFields() {
+      var ok = true;
+      var role            = document.querySelector('input[name="role"]:checked');
+      var orgName         = document.getElementById("orgName").value.trim();
+      var orgType         = document.getElementById("orgType").value;
+      var contact         = document.getElementById("contact").value.trim();
+      var mobile          = document.getElementById("mobile").value.trim();
+      var email           = document.getElementById("email").value.trim();
+      var address         = document.getElementById("address").value.trim();
+      var password        = document.getElementById("password").value;
+      var confirmPassword = document.getElementById("confirmPassword").value;
+      var terms           = document.getElementById("terms").checked;
+      var locality        = document.getElementById("locality").value.trim();
+      var lat             = document.getElementById("lat").value.trim();
+      var lng             = document.getElementById("lng").value.trim();
 
-      if (role == null) { showError("role", "Choose donor or recipient."); ok = false; }
-      if (orgName == "") { showError("orgName", "Enter the organisation name."); ok = false; }
-      if (orgType == "") { showError("orgType", "Choose a type."); ok = false; }
-      if (contact == "") { showError("contact", "Enter the contact person's name."); ok = false; }
+      if (!role)        { showError("role",    "Choose donor or recipient."); ok = false; }
+      if (!orgName)     { showError("orgName", "Enter the organisation name."); ok = false; }
+      if (!orgType)     { showError("orgType", "Choose a type."); ok = false; }
+      if (!contact)     { showError("contact", "Enter the contact person's name."); ok = false; }
 
-      // mobile number: exactly 10 digits, starting with 6, 7, 8 or 9
-      let mobilePattern = /^[6-9][0-9]{9}$/;
-      if (!mobilePattern.test(mobile)) { showError("mobile", "Enter a valid 10 digit mobile number."); ok = false; }
+      var mobilePattern = /^[6-9][0-9]{9}$/;
+      if (!mobilePattern.test(mobile)) { showError("mobile", "Enter a valid 10-digit mobile number."); ok = false; }
 
-      // email: something@something.something
-      let emailPattern = /^[^ @]+@[^ @]+\.[a-z]+$/;
+      var emailPattern = /^[^ @]+@[^ @]+\.[a-z]+$/i;
       if (!emailPattern.test(email)) { showError("email", "Enter a valid email address."); ok = false; }
 
-      if (address == "") { showError("address", "Enter the address."); ok = false; }
-      if (password.length < 6) { showError("password", "Password must be at least 6 characters."); ok = false; }
-      if (password != confirmPassword) { showError("confirmPassword", "Passwords do not match."); ok = false; }
-      if (!terms) { showError("terms", "Please accept the food safety agreement."); ok = false; }
+      if (!address)           { showError("address",  "Enter the address."); ok = false; }
+      if (password.length < 6){ showError("password", "Password must be at least 6 characters."); ok = false; }
+      if (password !== confirmPassword) { showError("confirmPassword", "Passwords do not match."); ok = false; }
+      if (!terms)             { showError("terms",    "Please accept the food safety agreement."); ok = false; }
+      if (!locality)          { showError("locality", "Enter the locality / area name."); ok = false; }
+      if (!lat)               { showError("lat",      "Enter the latitude."); ok = false; }
+      if (!lng)               { showError("lng",      "Enter the longitude."); ok = false; }
 
-      if (!ok) {
-        return false;   // stay on the page so the user can fix the red fields
+      return ok;
+    }
+
+    // ── API submit ──────────────────────────────────────────────────────────
+
+    function submitRegister() {
+      clearErrors();
+      if (!validateFields()) return false;   // stay on page; fields are highlighted
+
+      var role    = document.querySelector('input[name="role"]:checked').value; // "Donor" | "Recipient"
+      var apiType = role.toUpperCase();  // "DONOR" | "RECIPIENT"  (enum expected by API)
+
+      var body = {
+        name:     document.getElementById("orgName").value.trim(),
+        type:     apiType,
+        email:    document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value,
+        locality: document.getElementById("locality").value.trim(),
+        lat:      parseFloat(document.getElementById("lat").value),
+        lng:      parseFloat(document.getElementById("lng").value),
+      };
+
+      // Recipient-only optional fields
+      if (apiType === "RECIPIENT") {
+        var foodRaw = document.getElementById("foodTypesAccepted").value.trim();
+        if (foodRaw) {
+          body.foodTypesAccepted = foodRaw.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+        }
+        var cap = document.getElementById("capacityPerDay").value;
+        if (cap !== "") body.capacityPerDay = parseInt(cap, 10);
+        var radius = document.getElementById("serviceRadiusKm").value;
+        if (radius !== "") body.serviceRadiusKm = parseFloat(radius);
       }
 
-      alert("Thank you, " + orgName + "! You are registered as a " + role.value + ".");
-      return true;
+      // Disable the button while the request is in flight
+      var submitBtn = document.getElementById("submitBtn");
+      submitBtn.disabled = true;
+      submitBtn.value = "Registering...";
+
+      apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }).then(function (result) {
+        submitBtn.disabled = false;
+        submitBtn.value = "Register";
+
+        if (result.ok) {
+          saveSession(result.data.token, result.data.organisation);
+          // Redirect based on org type
+          if (result.data.organisation.type === "DONOR") {
+            window.location.href = "donor.html";
+          } else {
+            window.location.href = "recipient.html";
+          }
+        } else {
+          // Show the server's error message on the page (not an alert)
+          document.getElementById("serverError").innerText =
+            (result.data && result.data.message) ? result.data.message : "Registration failed. Please try again.";
+        }
+      });
+
+      return false;  // always prevent native form submission
     }
   </script>
 
