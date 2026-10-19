@@ -20,9 +20,28 @@ const createOrganisation = async (req, res) => {
 };
 
 // ── GET /api/organisations ─────────────────────────────────────────────────────
+// Public / browse-only. Returns only verified RECIPIENT organisations with safe public fields.
 const getAllOrganisations = async (req, res) => {
   try {
-    const organisations = await Organisation.find();
+    const safeFields = [
+      '_id',
+      'name',
+      'type',
+      'locality',
+      'lat',
+      'lng',
+      'foodTypesAccepted',
+      'capacityPerDay',
+      'remainingCapacityToday',
+      'serviceRadiusKm',
+      'reliabilityScore',
+    ].join(' ');
+
+    const organisations = await Organisation.find({
+      type: 'RECIPIENT',
+      verified: true,
+    }).select(safeFields);
+
     res.status(200).json(organisations);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

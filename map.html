@@ -4,6 +4,10 @@
   <title>FoodLoop - Map</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
+  <!-- Leaflet map library for interactive markers, popups, and radius circles -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="api.js"></script>
 </head>
 <body>
 
@@ -25,9 +29,10 @@
   <div class="content">
     <h2 id="mapTitle">St. Xavier's College Canteen, Dhobi Talao</h2>
 
-    <!-- a normal Google Maps embed; the JavaScript below changes its src -->
-    <iframe id="map" width="100%" height="380" style="border: 1px solid #cccccc; border-radius: 6px;"
-      src="https://maps.google.com/maps?q=18.9497,72.8296&z=14&output=embed"></iframe>
+    <p id="mapMessage" style="margin: 8px 0;"></p>
+
+    <!-- Map container -->
+    <div id="map" style="width: 100%; height: 380px; border: 1px solid #cccccc; border-radius: 6px; margin-bottom: 15px;"></div>
 
     <p>
       <button class="btn" onclick="showKitchen()">Show our kitchen</button>
@@ -37,13 +42,19 @@
     <h2>Shelters near our kitchen</h2>
     <p>Distance is the straight-line distance plus 30% for roads. Time assumes 20 km/h in city traffic.</p>
     <table id="shelterTable">
-      <tr>
-        <th>Shelter</th>
-        <th>Area</th>
-        <th>Distance</th>
-        <th>Drive time</th>
-        <th>Map</th>
-      </tr>
+      <thead>
+        <tr>
+          <th>Shelter</th>
+          <th>Area</th>
+          <th>Remaining Capacity</th>
+          <th>Distance</th>
+          <th>Drive time</th>
+          <th>Map</th>
+        </tr>
+      </thead>
+      <tbody id="shelterTableBody">
+        <tr><td colspan="6" style="text-align: center;">Loading shelters...</td></tr>
+      </tbody>
     </table>
   </div>
 
@@ -51,59 +62,193 @@
     &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
   </div>
 
-  <script src="data.js"></script>
   <script>
-    // show a place on the map by changing the iframe's src attribute
-    function showPlace(name, lat, lng) {
-      let url = "https://maps.google.com/maps?q=" + lat + "," + lng + "&z=14&output=embed";
-      document.getElementById("map").setAttribute("src", url);
-      document.getElementById("mapTitle").innerText = name;
+    // ── Location & Navigation Helpers ───────────────────────────────────────────
+    const currentOrg = (typeof getOrg === 'function') ? getOrg() : null;
+    const baseLocation = (currentOrg && currentOrg.lat && currentOrg.lng)
+      ? { name: currentOrg.name, area: currentOrg.locality || "Our location", lat: currentOrg.lat, lng: currentOrg.lng }
+      : { name: "St. Xavier's College Canteen", area: "Dhobi Talao", lat: 18.9497, lng: 72.8296 };
 
-      // Google Maps directions from the kitchen to this place
-      let directions = "https://www.google.com/maps/dir/?api=1" +
-        "&origin=" + kitchen.lat + "," + kitchen.lng +
-        "&destination=" + lat + "," + lng;
-      document.getElementById("directions").setAttribute("href", directions);
+    function distanceKm(lat1, lng1, lat2, lng2) {
+      const toRad = Math.PI / 180;
+      const dLat = (lat2 - lat1) * toRad;
+      const dLng = (lng2 - lng1) * toRad;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const straightLine = 2 * 6371 * Math.asin(Math.sqrt(a));
+      const byRoad = straightLine * 1.3;
+      return Math.round(byRoad * 10) / 10;
+    }
+
+    function driveMinutes(km) {
+      return Math.round(km / 20 * 60);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // ── Map State ───────────────────────────────────────────────────────────────
+    let map = null;
+    let kitchenMarker = null;
+    let shelterMarkers = [];
+    let sheltersData = [];
+
+    // Initialize Leaflet map
+    function initMap() {
+      if (typeof L !== 'undefined') {
+        map = L.map('map').setView([baseLocation.lat, baseLocation.lng], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        kitchenMarker = L.marker([baseLocation.lat, baseLocation.lng]).addTo(map);
+        kitchenMarker.bindPopup(
+          '<div style="font-family: Arial, sans-serif;">' +
+            '<h3 style="margin: 0 0 4px 0; color: #2e7d32; font-size: 15px;">' + escapeHtml(baseLocation.name) + '</h3>' +
+            '<p style="margin: 2px 0; font-size: 13px;">' + escapeHtml(baseLocation.area) + ' (Kitchen)</p>' +
+          '</div>'
+        );
+      } else {
+        // Fallback if Leaflet fails to load
+        const mapContainer = document.getElementById("map");
+        mapContainer.innerHTML = '<iframe width="100%" height="100%" style="border:0;" ' +
+          'src="https://maps.google.com/maps?q=' + baseLocation.lat + ',' + baseLocation.lng + '&z=14&output=embed"></iframe>';
+      }
     }
 
     function showKitchen() {
-      showPlace(kitchen.name + ", " + kitchen.area, kitchen.lat, kitchen.lng);
+      document.getElementById("mapTitle").innerText = baseLocation.name + ", " + baseLocation.area;
+      const directionsUrl = "https://www.google.com/maps/dir/?api=1" +
+        "&origin=" + baseLocation.lat + "," + baseLocation.lng +
+        "&destination=" + baseLocation.lat + "," + baseLocation.lng;
+      document.getElementById("directions").setAttribute("href", directionsUrl);
+
+      if (map && kitchenMarker) {
+        map.setView([baseLocation.lat, baseLocation.lng], 13);
+        kitchenMarker.openPopup();
+      }
     }
 
-    // fill the table: one row per shelter, with distance and drive time
-    let table = document.getElementById("shelterTable");
-    for (let i = 0; i < shelters.length; i++) {
-      let s = shelters[i];
-      let km = distanceKm(kitchen.lat, kitchen.lng, s.lat, s.lng);
+    function showShelter(index) {
+      const s = sheltersData[index];
+      if (!s) return;
 
-      let row = document.createElement("tr");
-      row.innerHTML =
-        "<td>" + s.name + "</td>" +
-        "<td>" + s.area + "</td>" +
-        "<td>" + km + " km</td>" +
-        "<td>" + driveMinutes(km) + " min</td>" +
-        "<td><button class='btn' onclick='showShelter(" + i + ")'>Show route</button></td>";
-      table.append(row);
-    }
-
-    // show the driving route from our kitchen to one shelter
-    function showShelter(i) {
-      let s = shelters[i];
-      let km = distanceKm(kitchen.lat, kitchen.lng, s.lat, s.lng);
-      let url = "https://maps.google.com/maps?saddr=" + kitchen.lat + "," + kitchen.lng +
-        "&daddr=" + s.lat + "," + s.lng + "&output=embed";
-      document.getElementById("map").setAttribute("src", url);
+      const km = distanceKm(baseLocation.lat, baseLocation.lng, s.lat, s.lng);
       document.getElementById("mapTitle").innerText =
-        "Route to " + s.name + ", " + s.area + " (" + km + " km, about " + driveMinutes(km) + " min)";
+        s.name + ", " + (s.locality || "") + " (" + km + " km, about " + driveMinutes(km) + " min)";
 
-      let directions = "https://www.google.com/maps/dir/?api=1" +
-        "&origin=" + kitchen.lat + "," + kitchen.lng +
+      const directionsUrl = "https://www.google.com/maps/dir/?api=1" +
+        "&origin=" + baseLocation.lat + "," + baseLocation.lng +
         "&destination=" + s.lat + "," + s.lng;
-      document.getElementById("directions").setAttribute("href", directions);
+      document.getElementById("directions").setAttribute("href", directionsUrl);
+
+      if (map && shelterMarkers[index]) {
+        map.setView([s.lat, s.lng], 14);
+        shelterMarkers[index].openPopup();
+      }
     }
 
-    // start with the kitchen shown
+    // ── Load Shelters from API ──────────────────────────────────────────────────
+    async function loadShelters() {
+      const mapMsg = document.getElementById("mapMessage");
+      const tbody = document.getElementById("shelterTableBody");
+
+      mapMsg.innerText = "Loading shelters from server...";
+      mapMsg.className = "";
+
+      const res = await apiFetch("/organisations");
+
+      if (!res.ok) {
+        const errorText = (res.data && res.data.message)
+          ? res.data.message
+          : "Cannot reach the server. Is the backend running?";
+        mapMsg.innerText = errorText;
+        mapMsg.className = "red-text";
+        tbody.innerHTML = '<tr><td colspan="6" class="red-text" style="text-align: center;">' + escapeHtml(errorText) + '</td></tr>';
+        return;
+      }
+
+      sheltersData = res.data || [];
+      mapMsg.innerText = "";
+
+      if (sheltersData.length === 0) {
+        mapMsg.innerText = "No verified recipient shelters found.";
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No shelters registered yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = "";
+
+      sheltersData.forEach((s, i) => {
+        const km = distanceKm(baseLocation.lat, baseLocation.lng, s.lat, s.lng);
+        const foodAcceptedStr = (s.foodTypesAccepted && s.foodTypesAccepted.length > 0)
+          ? s.foodTypesAccepted.join(", ")
+          : "All";
+        const remCap = s.remainingCapacityToday != null ? s.remainingCapacityToday : 0;
+        const totalCap = s.capacityPerDay != null ? s.capacityPerDay : 0;
+        const serviceRadius = s.serviceRadiusKm != null ? s.serviceRadiusKm : 15;
+
+        // Build table row
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td><b>' + escapeHtml(s.name) + '</b></td>' +
+          '<td>' + escapeHtml(s.locality || '-') + '</td>' +
+          '<td>' + remCap + ' / ' + totalCap + ' meals</td>' +
+          '<td>' + km + ' km</td>' +
+          '<td>' + driveMinutes(km) + ' min</td>' +
+          '<td><button class="btn" onclick="showShelter(' + i + ')">Show on map</button></td>';
+        tbody.appendChild(tr);
+
+        // Add Leaflet marker, popup and service radius circle
+        if (map && s.lat && s.lng) {
+          // Capacity colour indicator
+          let capColor = "#2e7d32";
+          if (remCap <= 0) {
+            capColor = "#c62828";
+          } else if (totalCap > 0 && (remCap / totalCap) < 0.2) {
+            capColor = "#e65100";
+          }
+
+          // Service radius circle
+          if (serviceRadius > 0) {
+            L.circle([s.lat, s.lng], {
+              radius: serviceRadius * 1000,
+              color: capColor,
+              fillColor: capColor,
+              fillOpacity: 0.08,
+              weight: 1.5,
+            }).addTo(map);
+          }
+
+          // Shelter marker
+          const marker = L.marker([s.lat, s.lng]).addTo(map);
+          const popupHtml =
+            '<div style="font-family: Arial, sans-serif; min-width: 190px;">' +
+              '<h3 style="margin: 0 0 5px 0; color: #2e7d32; font-size: 15px;">' + escapeHtml(s.name) + '</h3>' +
+              '<p style="margin: 3px 0; font-size: 13px;"><b>Locality:</b> ' + escapeHtml(s.locality || '-') + '</p>' +
+              '<p style="margin: 3px 0; font-size: 13px;"><b>Food accepted:</b> ' + escapeHtml(foodAcceptedStr) + '</p>' +
+              '<p style="margin: 3px 0; font-size: 13px;"><b>Remaining capacity:</b> ' + remCap + ' / ' + totalCap + ' meals</p>' +
+              '<p style="margin: 3px 0; font-size: 13px;"><b>Service radius:</b> ' + serviceRadius + ' km</p>' +
+            '</div>';
+          marker.bindPopup(popupHtml);
+          shelterMarkers.push(marker);
+        }
+      });
+    }
+
+    // ── Start ───────────────────────────────────────────────────────────────────
+    initMap();
     showKitchen();
+    loadShelters();
   </script>
 
 </body>
