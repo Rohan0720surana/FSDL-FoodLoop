@@ -31,6 +31,21 @@ app.use('/api/listings', listingRoutes);
 // Offer handling (recipient accept / pass)
 app.use('/api/offers', offerRoutes);
 
+// ── 404 handler ────────────────────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// ── Global error handler ────────────────────────────────────────────────────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ message: 'Invalid JSON in request body' });
+  }
+  console.error(err);
+  res.status(500).json({ message: 'Server error' });
+});
+
 // ── Start server ───────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 
