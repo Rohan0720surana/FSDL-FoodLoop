@@ -1,57 +1,128 @@
-FoodLoop - basic HTML, CSS and JavaScript version
-=================================================
+# FoodLoop
 
-How to open
------------
-Double-click index.html. Internet is needed only for the Google Map.
+Surplus food from Mumbai's kitchens, matched to the shelters and community kitchens that can collect it before the pickup deadline.
 
-Files
------
-index.html      Home page: what FoodLoop is, how it works, score table
-register.html   Registration form; errors are shown in red under each wrong field
-login.html      Login checked against demo accounts, opens the donor or recipient page
-donor.html      Donor page: post food, top 3 shelters, listings with live countdown
-donor.js        JavaScript for the donor page
-recipient.html  Recipient page: offers sorted by score, "Why?" breakdown,
-                Accept / Pass, room left updates after Accept
-map.html        Google Map (iframe), route from our kitchen to each shelter
-data.js         Sample data (arrays of objects) and helper functions
-style.css       One external style sheet for all pages
-images/         Logo (logo.svg), two photos, use-case diagram
+Restaurants, canteens, hotels and banquet halls post what's left at closing time. FoodLoop scores every nearby recipient organisation on five factors and sends **one ranked offer at a time**. If a recipient passes, the offer cascades to the next one. The recipient's own staff collect the food, so there is no delivery rider.
 
-Demo accounts
--------------
-Donor:      canteen@stxaviers.edu  /  canteen123
-Recipient:  contact@snehsadan.org  /  shelter123
+Built as the mini project for the Full Stack Development Lab (MERN stack).
 
-What each page uses (from the syllabus)
----------------------------------------
-HTML    headings, paragraphs, lists (ol, ul), tables, images, links,
-        forms (text, password, radio, checkbox, select, textarea,
-        submit, reset), iframe
-CSS     external style sheet, element / id / class / grouping selectors,
-        background-color, border, border-radius, margin, padding,
-        fonts, text-align, header / navigation bar / content / footer layout
-JS      variables (let, const), arithmetic and comparison operators,
-        if / else if / else, for loop, functions, arrays of objects,
-        array push and sort, Date object, Math object, string concatenation,
-        events (onclick, onsubmit), alert and confirm, form validation
-        with regular expressions, DOM: getElementById, querySelector,
-        innerHTML, innerText, createElement, append, remove,
-        setAttribute, classList, parentElement, setInterval, setTimeout,
-        Promise with resolve / reject, .then() and .catch()
+---
 
-Where the important logic is
-----------------------------
-distanceKm()       data.js     distance between two places (Math.sin, Math.cos)
-matchScore()       data.js     score out of 100 (35/25/20/10/10 weights)
-updateTimes()      donor.js    countdown, runs every second with setInterval
-findBestShelter()  donor.js    Promise that ranks the shelters after 2 seconds
-showRanking()      donor.js    shows the top 3 shelters in a table
-updateTimes()      donor.js    also marks a listing expired when time runs out
-validateForm()     register.html   showError() puts a message under the field
-login()            login.html  looks for the email and password in the users array
-updateCapacity()   recipient.html  room left, disables Accept if the food won't fit
-toggleWhy()        recipient.html  shows / hides the score breakdown row
-showPlace()        map.html    changes the iframe src to move the map
-showShelter()      map.html    shows the route from our kitchen (saddr / daddr)
+## How matching works
+
+When a donor posts a listing, every eligible recipient is scored:
+
+| Factor                                                  | Weight |
+| ------------------------------------------------------- | ------ |
+| Time feasibility (can they arrive before the deadline?) | 35%    |
+| Proximity                                               | 25%    |
+| Capacity fit                                            | 20%    |
+| Food type                                               | 10%    |
+| Reliability                                             | 10%    |
+
+The highest-scoring recipient gets the offer first. If they **pass** (or the offer lapses), it cascades to the next recipient in ranked order. If they **accept**, the listing is assigned and the donor sees who is coming to collect.
+
+## Features
+
+- Donor and recipient registration and login with JWT authentication
+- Donors post, view and manage surplus food listings
+- Weighted matching engine that ranks recipient organisations per listing
+- Offer accept / pass cascade
+- Recipient dashboard with ranked offers and score breakdowns
+- Map view of live shelters (Leaflet + OpenStreetMap)
+- Frontend served directly from the Express server
+
+## Tech stack
+
+| Layer    | Tools                                                    |
+| -------- | -------------------------------------------------------- |
+| Frontend | HTML, CSS, JavaScript, Leaflet, OpenStreetMap            |
+| Backend  | Node.js, Express.js                                      |
+| Database | MongoDB with Mongoose                                    |
+| Auth     | JSON Web Tokens (`jsonwebtoken`), password hashing with `bcryptjs` |
+| Other    | `cors`, `dotenv`, `nodemon` (dev)                        |
+
+## Project structure
+
+```
+FSDL-FoodLoop/
+├── backend/
+│   ├── server.js            # Express app, middleware, static serving
+│   ├── config/db.js         # MongoDB connection
+│   ├── routes/              # auth, organisations, listings, offers
+│   └── package.json
+├── frontend/                # donor, recipient, login, register and map pages
+└── README.md
+```
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18+
+- MongoDB running locally (or a MongoDB Atlas connection string)
+
+### 1. Install
+
+```bash
+git clone https://github.com/Rohan0720surana/FSDL-FoodLoop.git
+cd FSDL-FoodLoop/backend
+npm install
+```
+
+### 2. Configure environment
+
+Create a `.env` file inside `backend/`:
+
+```
+PORT=5000
+MONGO_URI=mongodb://localhost:27017/foodloop
+JWT_SECRET=replace_with_a_long_random_string
+```
+
+### 3. Run
+
+```bash
+npm run dev     # development, auto-restarts with nodemon
+# or
+npm start       # production
+```
+
+Open http://localhost:5000. The Express server serves the frontend pages and the API from the same origin.
+
+## API overview
+
+All API routes are under `/api`.
+
+| Prefix               | Purpose                                              |
+| -------------------- | ---------------------------------------------------- |
+| `GET /api/health`    | Health check, returns `{ "status": "ok" }`           |
+| `/api/auth`          | Register and log in (returns a JWT)                  |
+| `/api/organisations` | Organisation CRUD (donors and recipients)            |
+| `/api/listings`      | Listing CRUD and matching                            |
+| `/api/offers`        | Recipient accept / pass on an offer                  |
+
+Protected routes expect an `Authorization: Bearer <token>` header. Unknown routes return a JSON 404, and malformed JSON returns a 400 with a clear message.
+
+## Security notes
+
+- Passwords are hashed with bcrypt before storage.
+- The server blocks requests to `/backend` and to any dotfile path (such as `.env` or `.git`) when serving static files.
+- Keep `.env` out of version control.
+
+## Status and limitations
+
+- Distances on the map are estimates (straight-line distance x 1.3 for roads, at a time-of-day city speed), not live routing or traffic.
+- Seed and demo data are for Mumbai.
+- No payment, delivery or notification services are included.
+
+## Future work
+
+- Real road routing and live traffic via a routing API
+- Push or SMS notifications for new offers
+- Donor and recipient impact reports
+
+## Team
+
+- Ayman Shaikh · [GitHub](https://github.com/aymanchamp-sudo)
+- Rohan Surana · [GitHub](https://github.com/Rohan0720surana)
