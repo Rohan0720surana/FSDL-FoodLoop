@@ -4,14 +4,13 @@
   <title>FoodLoop - Donor Dashboard</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
-  <script src="api.js"></script>
 </head>
 <body>
 
   <div class="header">
     <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
-    <p>Donor dashboard &middot; <span id="headerOrg">Loading...</span></p>
+    <p>Donor dashboard &middot; <span id="headerOrg"></span></p>
   </div>
 
   <div class="navbar">
@@ -21,95 +20,89 @@
     <a href="donor.html" class="active">Donor</a>
     <a href="recipient.html">Recipient</a>
     <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
   </div>
 
   <div class="content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-      <p id="greeting" style="margin: 0; font-size: 16px;"></p>
-      <button class="btn btn-grey" onclick="logout()">Logout</button>
-    </div>
+    <p id="greeting"></p>
+
+    <!-- today's numbers, filled by donor.js -->
+    <div id="summary"></div>
+
+    <!-- "On Fridays you usually post about 55 meals around 7 pm", from GET /api/listings/insights -->
+    <div id="insight" class="notice hidden"></div>
 
     <h2>Post surplus food</h2>
     <div class="box">
-      <p>
-        Food name:<br>
-        <input type="text" id="food" placeholder="e.g. Veg biryani + dal">
-      </p>
-      <p>
-        Food type:<br>
-        <select id="type">
-          <option value="VEG">Veg</option>
-          <option value="NON_VEG">Non-veg</option>
-          <option value="BAKERY">Bakery</option>
-          <option value="PACKAGED">Packaged</option>
-        </select>
-      </p>
-      <p>
-        Quantity (meals):<br>
-        <input type="number" id="quantity" min="1" placeholder="e.g. 40">
-      </p>
-      <p>
-        Can be picked up for the next (hours):<br>
-        <input type="number" id="hours" min="0.5" max="24" step="any" placeholder="e.g. 2">
-      </p>
-      <button class="btn" id="postBtn" onclick="postFood()">Post food</button>
+      <table class="form-table">
+        <tr>
+          <td><label for="food">What is the food?</label></td>
+          <td><input type="text" id="food" placeholder="e.g. Veg biryani + dal"></td>
+        </tr>
+        <tr>
+          <td><label for="type">Food type</label></td>
+          <td>
+            <select id="type">
+              <option value="VEG">Veg</option>
+              <option value="NON_VEG">Non-veg</option>
+              <option value="BAKERY">Bakery</option>
+              <option value="PACKAGED">Packaged</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="quantity">How many meals?</label></td>
+          <td><input type="number" id="quantity" min="1" placeholder="e.g. 40"></td>
+        </tr>
+        <tr>
+          <td><label for="hours">Can be picked up for the next</label></td>
+          <td>
+            <input type="number" id="hours" min="0.5" max="12" step="0.5" placeholder="e.g. 2"> hours
+            <span class="hint">Between half an hour and 12 hours.</span>
+          </td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><button class="btn" id="postBtn" onclick="postFood()">Post food</button></td>
+        </tr>
+      </table>
       <p id="message"></p>
 
       <!-- filled by donor.js after the food is posted and matched -->
       <div id="rankBox" class="hidden">
         <p><b>Shelters ranked for this food</b></p>
         <table id="rankTable"></table>
-        <p class="caption">The offer goes to #1 first. If they pass, it moves to #2, then #3.</p>
+        <p class="caption">#1 is asked first and has 10 minutes to reply. If they pass or do not reply,
+          the remaining shelters are scored again with the time left and the best one is asked next.</p>
       </div>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h2>My listings</h2>
-      <button class="btn btn-grey" id="refreshBtn" onclick="refreshAll()">Refresh</button>
-    </div>
+    <h2>My listings <button class="btn btn-grey btn-small" id="refreshBtn" onclick="refreshAll()">Refresh</button></h2>
     <p id="listingsMessage"></p>
     <table id="listingTable">
-      <thead>
-        <tr>
-          <th>Description</th>
-          <th>Type</th>
-          <th>Quantity</th>
-          <th>Deadline / Time left</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="listingTableBody"></tbody>
+      <tr>
+        <th>Food</th>
+        <th>Meals</th>
+        <th>Time left</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
     </table>
-    <p class="caption">Time left turns orange under 1 hour and red under 15 minutes. Food that is not collected in time is marked expired.</p>
+    <p class="caption">This page updates itself every 15 seconds. When the shelter's staff arrive, type the
+      4-digit code they show you and click Confirm pickup.</p>
 
-    <!-- filled when a listing is clicked or View offers is selected -->
+    <!-- filled when "Timeline" is clicked -->
     <div id="offersSection" class="box hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="margin: 0; color: #2e7d32;">Offers for: <span id="offersListingTitle"></span></h3>
-        <button class="btn btn-grey" onclick="closeOffers()">Close</button>
-      </div>
+      <h3>Timeline: <span id="offersListingTitle"></span></h3>
       <p id="offersMessage"></p>
-      <table id="offersTable">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Shelter</th>
-            <th>Locality</th>
-            <th>Score</th>
-            <th>Status</th>
-            <th>Active</th>
-          </tr>
-        </thead>
-        <tbody id="offersTableBody"></tbody>
-      </table>
+      <ol id="timeline" class="timeline"></ol>
+      <p><b>Every shelter that was ranked</b></p>
+      <table id="offersTable"></table>
+      <button class="btn btn-grey btn-small" onclick="closeOffers()">Close</button>
     </div>
   </div>
 
-  <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
-  </div>
-
+  <script src="api.js"></script>
   <script src="donor.js"></script>
 </body>
 </html>

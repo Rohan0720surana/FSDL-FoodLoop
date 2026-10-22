@@ -1,398 +1,488 @@
-// donor.js - Donor dashboard connected to FoodLoop API
+// donor.js - the donor dashboard: post food, see who it was offered to,
+// confirm the pickup with the shelter's handover code, and rate the shelter.
 
-// ── 1. Page guard & Authentication ───────────────────────────────────────────
-const token = getToken();
-const org = getOrg();
+let org = requireLogin("DONOR");
+let listings = [];          // my listings, as sent by the server
+let openOffersFor = null;   // listing whose timeline is being shown
+let myRating = null;        // how shelters rated my food
 
-if (!token || !org || org.type !== "DONOR") {
-  window.location.href = "login.html";
-}
-
-function logout() {
-  clearSession();
-  window.location.href = "login.html";
-}
-
-// Display organisation name and greeting
 if (org) {
-  const headerOrg = document.getElementById("headerOrg");
-  if (headerOrg) {
-    headerOrg.innerText = org.name + (org.locality ? ", " + org.locality : "");
-  }
-
-  const hour = new Date().getHours();
-  let timeGreeting = "Good evening";
-  if (hour < 12) {
-    timeGreeting = "Good morning";
-  } else if (hour < 17) {
-    timeGreeting = "Good afternoon";
-  }
-
-  const greetingEl = document.getElementById("greeting");
-  if (greetingEl) {
-    greetingEl.innerHTML = "<b>" + timeGreeting + ", " + escapeHtml(org.name) + "!</b>";
-  }
+  setupNavbar();
+  document.getElementById("headerOrg").innerText = org.name + ", " + org.locality;
+  document.getElementById("greeting").innerHTML =
+    "<b>" + greeting() + ", " + escapeHtml(org.name) + "!</b>";
+  loadMyRating().then(loadListings);
+  loadInsights();
+  setInterval(updateTimes, 1000);    // countdown every second
+  setInterval(loadListings, 15000);  // fresh data every 15 seconds
 }
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let currentListings = [];
-let currentSelectedListingId = null;
-let currentSelectedListingTitle = "";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+function clockTime(date) {
+  return new Date(date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function formatTime(ms) {
-  if (ms <= 0) return "Expired";
-  const totalSeconds = Math.floor(ms / 1000);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  let s = totalSeconds % 60;
-  if (h > 0) return h + "h " + m + "m";
-  if (s < 10) s = "0" + s;
-  return m + "m " + s + "s";
+function isToday(date) {
+  return date && new Date(date).toDateString() == new Date().toDateString();
 }
 
-// ── 2 & 3. Post Food & Match Listing ──────────────────────────────────────────
-async function postFood() {
-  const foodInput = document.getElementById("food");
-  const typeInput = document.getElementById("type");
-  const quantityInput = document.getElementById("quantity");
-  const hoursInput = document.getElementById("hours");
-  const messageEl = document.getElementById("message");
-  const postBtn = document.getElementById("postBtn");
-  const rankBox = document.getElementById("rankBox");
+// ---------------- today's summary (A2) ----------------
 
-  messageEl.innerText = "";
-  messageEl.className = "";
-  rankBox.classList.add("hidden");
-
-  const food = foodInput.value.trim();
-  const foodType = typeInput.value;
-  const quantity = Number(quantityInput.value);
-  const hours = parseFloat(hoursInput.value);
-
-  // Client-side validations
-  if (!food) {
-    messageEl.innerText = "Please enter the food name/description.";
-    messageEl.className = "red-text";
-    return;
-  }
-  if (isNaN(quantity) || quantity <= 0) {
-    messageEl.innerText = "Please enter a valid quantity of meals (greater than 0).";
-    messageEl.className = "red-text";
-    return;
-  }
-  if (isNaN(hours) || hours <= 0) {
-    messageEl.innerText = "Please enter how many hours the food can be picked up for.";
-    messageEl.className = "red-text";
-    return;
-  }
-  if (hours < 0.5) {
-    messageEl.innerText = "Pickup deadline must be at least 30 minutes (0.5 hours) from now.";
-    messageEl.className = "red-text";
-    return;
-  }
-
-  // Calculate deadline
-  const pickupDeadline = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-
-  // Disable button and show loading state
-  postBtn.disabled = true;
-  postBtn.innerText = "Posting listing...";
-  messageEl.innerText = "Creating surplus food listing...";
-  messageEl.className = "";
-
-  const createRes = await apiFetch("/listings", {
-    method: "POST",
-    body: JSON.stringify({
-      donor: org._id,
-      description: food,
-      foodType: foodType,
-      quantity: quantity,
-      pickupDeadline: pickupDeadline,
-    }),
+function loadMyRating() {
+  return apiFetch("/organisations/me").then(function (result) {
+    if (result.ok) myRating = result.data.rating;
   });
-
-  if (!createRes.ok) {
-    postBtn.disabled = false;
-    postBtn.innerText = "Post food";
-    messageEl.innerText = (createRes.data && createRes.data.message)
-      ? createRes.data.message
-      : "Failed to create listing.";
-    messageEl.className = "red-text";
-    return;
-  }
-
-  const createdListing = createRes.data;
-
-  // Now trigger matching
-  postBtn.innerText = "Matching with shelters...";
-  messageEl.innerText = "Listing created. Finding eligible shelters and calculating route scores...";
-
-  const matchRes = await apiFetch("/listings/" + createdListing._id + "/match", {
-    method: "POST",
-  });
-
-  postBtn.disabled = false;
-  postBtn.innerText = "Post food";
-
-  if (!matchRes.ok) {
-    messageEl.innerText = "Listing posted, but matching returned an error: " +
-      ((matchRes.data && matchRes.data.message) ? matchRes.data.message : "Server error");
-    messageEl.className = "orange-text";
-    loadMyListings();
-    return;
-  }
-
-  // Reset form inputs
-  foodInput.value = "";
-  quantityInput.value = "";
-  hoursInput.value = "";
-
-  const offers = matchRes.data.offers || [];
-  if (offers.length === 0) {
-    messageEl.innerText = matchRes.data.message || "No recipient can take this listing right now.";
-    messageEl.className = "orange-text";
-    rankBox.classList.add("hidden");
-  } else {
-    const firstRecipient = offers[0].recipient ? offers[0].recipient.name : "top-ranked shelter";
-    messageEl.innerText = "Posted! Top offer sent to " + firstRecipient + ".";
-    messageEl.className = "green-text";
-
-    // Populate rankTable
-    const rankTable = document.getElementById("rankTable");
-    rankTable.innerHTML = `
-      <tr>
-        <th>Rank</th>
-        <th>Shelter</th>
-        <th>Locality</th>
-        <th>Distance</th>
-        <th>Drive time</th>
-        <th>Score</th>
-      </tr>
-    `;
-
-    offers.forEach(function (offer, index) {
-      const tr = document.createElement("tr");
-      if (index === 0) {
-        tr.classList.add("accepted-row");
-      }
-      const shelterName = offer.recipient ? escapeHtml(offer.recipient.name) : "Unknown";
-      const locality = offer.recipient && offer.recipient.locality ? escapeHtml(offer.recipient.locality) : "-";
-      const distance = offer.km != null ? offer.km + " km" : "-";
-      const driveTime = offer.driveMinutes != null ? offer.driveMinutes + " min" : "-";
-
-      tr.innerHTML = `
-        <td>#${offer.rank}</td>
-        <td>${shelterName}</td>
-        <td>${locality}</td>
-        <td>${distance}</td>
-        <td>${driveTime}</td>
-        <td><b>${offer.score}</b> / 100</td>
-      `;
-      rankTable.appendChild(tr);
-    });
-
-    rankBox.classList.remove("hidden");
-  }
-
-  // Reload the listings table
-  loadMyListings();
 }
 
-// ── 4. My Listings & Offers ───────────────────────────────────────────────────
-async function loadMyListings() {
-  const listingsMessage = document.getElementById("listingsMessage");
-  const tbody = document.getElementById("listingTableBody");
-
-  listingsMessage.innerText = "Loading listings...";
-  listingsMessage.className = "";
-
-  const res = await apiFetch("/listings/mine");
-
-  if (!res.ok) {
-    listingsMessage.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Failed to load listings.";
-    listingsMessage.className = "red-text";
-    return;
+function showSummary() {
+  let postedToday = 0;
+  let waiting = 0;
+  let coming = 0;
+  let mealsToday = 0;
+  for (let i = 0; i < listings.length; i++) {
+    let l = listings[i];
+    if (isToday(l.createdAt)) postedToday++;
+    if (l.status == "MATCHED") waiting++;
+    if (l.status == "ACCEPTED") coming++;
+    if (l.status == "COLLECTED" && isToday(l.collectedAt)) mealsToday += l.quantity;
   }
+  document.getElementById("summary").innerHTML =
+    "<div class='stat'><b>" + postedToday + "</b>posted today</div>" +
+    "<div class='stat'><b>" + waiting + "</b>waiting for a shelter</div>" +
+    "<div class='stat'><b>" + coming + "</b>shelters on the way</div>" +
+    "<div class='stat'><b>" + mealsToday + "</b>meals collected today</div>" +
+    "<div class='stat'><b>" + (myRating ? myRating.average + " &#9733;" : "-") + "</b>your food rating from shelters</div>";
+}
 
-  currentListings = res.data || [];
-  listingsMessage.innerText = "";
+// ---------------- "you usually have surplus on ..." (B5) ----------------
 
-  tbody.innerHTML = "";
+function loadInsights() {
+  apiFetch("/listings/insights").then(function (result) {
+    let box = document.getElementById("insight");
+    if (!result.ok) return;
+    let s = result.data;
+    let text = "";
 
-  if (currentListings.length === 0) {
-    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No listings posted yet.</td></tr>";
-    return;
-  }
-
-  currentListings.forEach(function (listing, index) {
-    const tr = document.createElement("tr");
-    tr.id = "listing-row-" + listing._id;
-
-    const deadlineTime = new Date(listing.pickupDeadline).getTime();
-    const msLeft = deadlineTime - Date.now();
-
-    let deadlineDisplay = formatTime(msLeft);
-    let timeClass = "";
-    if (msLeft <= 0) {
-      deadlineDisplay = "Expired";
-      tr.classList.add("passed-row");
-    } else if (msLeft < 15 * 60000) {
-      timeClass = "red-text";
-    } else if (msLeft < 60 * 60000) {
-      timeClass = "orange-text";
+    if (s.today) {
+      text = "<b>On " + s.today.day + " you usually post about " + s.today.averageMeals + " meals around " +
+        s.today.usualTime + "</b>, mostly " + foodTypeName(s.today.usualFoodType).toLowerCase() +
+        " (from your last " + s.today.listings + " " + s.today.day + "). " +
+        "<button class='btn btn-small' onclick='useSuggestion(" + s.today.averageMeals + ", \"" + s.today.usualFoodType + "\")'>Fill in " +
+        s.today.averageMeals + " meals</button>";
+    } else if (s.busiestDay) {
+      text = "Your busiest day is <b>" + s.busiestDay.day + "</b>: about " + s.busiestDay.averageMeals +
+        " meals around " + s.busiestDay.usualTime + ". Nothing usual for today.";
     } else {
-      timeClass = "green-text";
+      text = "Post food a few times and FoodLoop will learn which days you usually have surplus.";
+    }
+    box.innerHTML = text + "<br><span class='caption'>Worked out from your past " + s.totalListings +
+      " listings with a MongoDB aggregation (grouped by day of the week).</span>";
+    box.classList.remove("hidden");
+  });
+}
+
+function useSuggestion(meals, foodType) {
+  document.getElementById("quantity").value = meals;
+  document.getElementById("type").value = foodType;
+  document.getElementById("food").focus();
+}
+
+// ---------------- posting food ----------------
+
+function showMessage(text, cssClass) {
+  let message = document.getElementById("message");
+  message.innerText = text;
+  message.className = cssClass || "";
+}
+
+function postFood() {
+  let food = document.getElementById("food").value.trim();
+  let type = document.getElementById("type").value;
+  let meals = Number(document.getElementById("quantity").value);
+  let hours = Number(document.getElementById("hours").value);
+  let button = document.getElementById("postBtn");
+  document.getElementById("rankBox").classList.add("hidden");
+
+  // checks before sending
+  if (food == "") {
+    showMessage("Please enter what the food is.", "red-text");
+    return;
+  }
+  if (!Number.isInteger(meals) || meals <= 0) {
+    showMessage("Please enter the number of meals (a whole number above 0).", "red-text");
+    return;
+  }
+  if (!(hours >= 0.5 && hours <= 12)) {
+    showMessage("The pickup time must be between half an hour and 12 hours.", "red-text");
+    return;
+  }
+
+  let deadline = new Date(Date.now() + hours * 3600000).toISOString();
+  button.disabled = true;
+  button.innerText = "Posting...";
+  showMessage("Posting the food...");
+
+  // 1. save the listing, 2. ask the server to rank the shelters
+  apiFetch("/listings", {
+    method: "POST",
+    body: JSON.stringify({ description: food, foodType: type, quantity: meals, pickupDeadline: deadline })
+  })
+    .then(function (created) {
+      if (!created.ok) {
+        throw new Error(created.data.message || "Could not post the food.");
+      }
+      showMessage("Posted. Finding the best shelter...");
+      return apiFetch("/listings/" + created.data._id + "/match", { method: "POST" });
+    })
+    .then(function (matched) {
+      if (!matched.ok) {
+        throw new Error(matched.data.message || "Could not match the food.");
+      }
+      let offers = matched.data.offers || [];
+      if (offers.length == 0) {
+        showMessage(matched.data.message, "orange-text");
+      } else {
+        showMessage("Posted! Offered first to " + offers[0].recipient.name + ".", "green-text");
+        showRanking(offers);
+        document.getElementById("food").value = "";
+        document.getElementById("quantity").value = "";
+        document.getElementById("hours").value = "";
+      }
+      loadListings();
+    })
+    .catch(function (error) {
+      showMessage(error.message, "red-text");
+      loadListings();
+    })
+    .then(function () {
+      button.disabled = false;
+      button.innerText = "Post food";
+    });
+}
+
+// the ranked shelters for the food just posted
+function showRanking(offers) {
+  let table = document.getElementById("rankTable");
+  table.innerHTML = "<tr><th>Rank</th><th>Shelter</th><th>Area</th><th>Distance</th><th>Drive time</th><th>Score</th></tr>";
+
+  for (let i = 0; i < offers.length; i++) {
+    let o = offers[i];
+    let row = document.createElement("tr");
+    if (i == 0) row.classList.add("accepted-row");
+    row.innerHTML =
+      "<td>#" + o.rank + "</td>" +
+      "<td>" + escapeHtml(o.recipient.name) + (i == 0 ? " <span class='badge badge-accepted'>asked first</span>" : "") + "</td>" +
+      "<td>" + escapeHtml(o.recipient.locality) + "</td>" +
+      "<td>" + o.km + " km</td>" +
+      "<td>" + o.driveMinutes + " min</td>" +
+      "<td><b>" + o.score + "</b> / 100</td>";
+    table.append(row);
+  }
+  document.getElementById("rankBox").classList.remove("hidden");
+}
+
+// ---------------- my listings ----------------
+
+function loadListings() {
+  return apiFetch("/listings/mine").then(function (result) {
+    let message = document.getElementById("listingsMessage");
+    if (result.status == 401) {
+      logout();
+      return;
+    }
+    if (!result.ok) {
+      message.innerText = result.data.message || "Could not load your listings.";
+      message.className = "red-text";
+      return;
+    }
+    message.innerText = "";
+
+    // keep anything typed into a code box while the table is redrawn
+    let typed = {};
+    let boxes = document.querySelectorAll(".code-input");
+    for (let i = 0; i < boxes.length; i++) {
+      typed[boxes[i].id] = boxes[i].value;
     }
 
-    const descEscaped = escapeHtml(listing.description);
-    const idEscaped = escapeHtml(listing._id);
+    listings = result.data;
+    showListings();
+    showSummary();
 
-    tr.innerHTML = `
-      <td>${descEscaped}</td>
-      <td>${escapeHtml(listing.foodType)}</td>
-      <td>${listing.quantity} meals</td>
-      <td id="time-cell-${index}" class="${timeClass}">${deadlineDisplay}</td>
-      <td><span id="status-cell-${index}">${escapeHtml(listing.status)}</span></td>
-      <td>
-        <button class="btn" onclick="viewOffers('${idEscaped}', '${descEscaped}')">View offers</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
+    for (let id in typed) {
+      let box = document.getElementById(id);
+      if (box) box.value = typed[id];
+    }
+    if (openOffersFor) loadOffers(openOffersFor);
   });
 }
 
-function updateCountdowns() {
-  if (!currentListings || currentListings.length === 0) return;
+function statusBadge(status) {
+  let names = { OPEN: "Not offered", MATCHED: "Offered", ACCEPTED: "Accepted", COLLECTED: "Collected", EXPIRED: "Expired" };
+  return "<span class='badge badge-" + status.toLowerCase() + "'>" + names[status] + "</span>";
+}
 
-  currentListings.forEach(function (listing, index) {
-    const cell = document.getElementById("time-cell-" + index);
-    if (!cell) return;
+// what the Status column says under the label
+function statusDetail(l) {
+  if (l.status == "OPEN") {
+    return "No shelter could take it when it was posted.";
+  }
+  if (l.status == "MATCHED" && l.activeOffer) {
+    return "Asking <b>" + escapeHtml(l.activeOffer.shelter) + "</b> (score " + l.activeOffer.score + ")" +
+      "<br><span class='caption'>Reply due by " + clockTime(l.activeOffer.replyBy) + "</span>";
+  }
+  if (l.status == "ACCEPTED" && l.acceptedBy) {
+    return "<b>" + escapeHtml(l.acceptedBy.name) + "</b> is coming to collect" +
+      "<br><span class='caption'>Contact: " + escapeHtml(l.acceptedBy.contactName) + ", " + escapeHtml(l.acceptedBy.phone) +
+      " &middot; punctuality " + starsText(l.acceptedBy.rating) + "</span>";
+  }
+  if (l.status == "COLLECTED" && l.acceptedBy) {
+    let when = isToday(l.collectedAt) ? clockTime(l.collectedAt) :
+      new Date(l.collectedAt).toLocaleDateString([], { day: "numeric", month: "short" });
+    return "Collected by " + escapeHtml(l.acceptedBy.name) + ", " + when;
+  }
+  if (l.status == "EXPIRED") {
+    return "No shelter collected it before the deadline.";
+  }
+  return "";
+}
 
-    const msLeft = new Date(listing.pickupDeadline).getTime() - Date.now();
-    cell.innerText = formatTime(msLeft);
+function actionButtons(l) {
+  let id = l._id;
+  let timeline = "<button class='btn btn-grey btn-small' onclick=\"viewOffers('" + id + "')\">Timeline</button> ";
+  let cancel = "<button class='btn btn-red btn-small' onclick=\"cancelListing('" + id + "')\">Cancel</button>";
+
+  if (l.status == "OPEN") {
+    return "<button class='btn btn-small' onclick=\"tryAgain('" + id + "')\">Try again</button> " + cancel;
+  }
+  if (l.status == "MATCHED") {
+    return timeline + cancel;
+  }
+  if (l.status == "ACCEPTED") {
+    return "<label for='code-" + id + "' class='caption'>Shelter's code</label><br>" +
+      "<input type='text' class='code-input' id='code-" + id + "' maxlength='4' placeholder='Code'> " +
+      "<button class='btn btn-small' id='confirm-" + id + "' onclick=\"confirmPickup('" + id + "')\">Confirm pickup</button><br>" + timeline;
+  }
+  if (l.status == "COLLECTED" && l.acceptedBy) {
+    // rate the shelter once (B7)
+    if (l.ratingOfShelter && l.ratingOfShelter.stars) {
+      return timeline + "<br><span class='caption'>You rated them " + l.ratingOfShelter.stars + " <span class='stars-shown'>&#9733;</span></span>";
+    }
+    return timeline + "<br><span class='caption'>Did they come on time?</span><br>" + starPicker("rate-" + id, "rateShelter");
+  }
+  return timeline;
+}
+
+function showListings() {
+  let table = document.getElementById("listingTable");
+  // remove the old rows but keep the heading row
+  while (table.rows.length > 1) {
+    table.deleteRow(1);
+  }
+
+  if (listings.length == 0) {
+    let row = table.insertRow();
+    row.innerHTML = "<td colspan='5'>You have not posted any food yet. Use the form above.</td>";
+    return;
+  }
+
+  for (let i = 0; i < listings.length; i++) {
+    let l = listings[i];
+    let row = document.createElement("tr");
+    if (l.status == "ACCEPTED" || l.status == "COLLECTED") row.classList.add("accepted-row");
+    if (l.status == "EXPIRED") row.classList.add("passed-row");
+    row.innerHTML =
+      "<td>" + escapeHtml(l.description) + "<br><span class='caption'>" + foodTypeName(l.foodType) +
+      " &middot; posted " + new Date(l.createdAt).toLocaleDateString([], { day: "numeric", month: "short" }) + "</span></td>" +
+      "<td>" + l.quantity + "</td>" +
+      "<td id='time-" + l._id + "'></td>" +
+      "<td>" + statusBadge(l.status) + "<br>" + statusDetail(l) + "</td>" +
+      "<td>" + actionButtons(l) + "</td>";
+    table.append(row);
+  }
+  updateTimes();
+}
+
+// update every "time left" cell - runs every second
+function updateTimes() {
+  for (let i = 0; i < listings.length; i++) {
+    let l = listings[i];
+    let cell = document.getElementById("time-" + l._id);
+    if (!cell) continue;
 
     cell.classList.remove("green-text", "orange-text", "red-text");
-    if (msLeft <= 0) {
+    if (l.status == "COLLECTED") {
+      cell.innerText = "Done";
+    } else if (l.status == "EXPIRED") {
       cell.innerText = "Expired";
-      const row = cell.closest("tr");
-      if (row) row.classList.add("passed-row");
-    } else if (msLeft < 15 * 60000) {
-      cell.classList.add("red-text");
-    } else if (msLeft < 60 * 60000) {
-      cell.classList.add("orange-text");
     } else {
-      cell.classList.add("green-text");
+      let msLeft = new Date(l.pickupDeadline).getTime() - Date.now();
+      cell.innerText = formatTime(msLeft);
+      cell.classList.add(timeClass(msLeft));
     }
+  }
+}
+
+// ---------------- buttons ----------------
+
+function tryAgain(id) {
+  apiFetch("/listings/" + id + "/match", { method: "POST" }).then(function (result) {
+    let offers = result.data.offers || [];
+    if (result.ok && offers.length > 0) {
+      showMessage("Offered to " + offers[0].recipient.name + ".", "green-text");
+      showRanking(offers);
+    } else {
+      showMessage(result.data.message || "Still no shelter can take it.", "orange-text");
+    }
+    window.scrollTo(0, 0);
+    loadListings();
   });
 }
 
-// Run countdown timer every second
-setInterval(updateCountdowns, 1000);
+function cancelListing(id) {
+  if (!confirm("Cancel this listing? Shelters will no longer see it.")) return;
+  apiFetch("/listings/" + id, { method: "DELETE" }).then(function (result) {
+    if (!result.ok) alert(result.data.message);
+    if (openOffersFor == id) closeOffers();
+    loadListings();
+  });
+}
 
-// View offers for a specific listing
-async function viewOffers(listingId, listingTitle) {
-  currentSelectedListingId = listingId;
-  currentSelectedListingTitle = listingTitle;
-
-  const section = document.getElementById("offersSection");
-  const titleEl = document.getElementById("offersListingTitle");
-  const messageEl = document.getElementById("offersMessage");
-  const tbody = document.getElementById("offersTableBody");
-
-  titleEl.innerText = listingTitle;
-  messageEl.innerText = "Loading offers...";
-  messageEl.className = "";
-  tbody.innerHTML = "";
-  section.classList.remove("hidden");
-
-  // Scroll smoothly to offers section
-  section.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-  const res = await apiFetch("/listings/" + listingId + "/offers");
-
-  if (!res.ok) {
-    messageEl.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Failed to load offers.";
-    messageEl.className = "red-text";
+// the kitchen checks the code the shelter's staff show at the door
+function confirmPickup(id) {
+  let code = document.getElementById("code-" + id).value.trim();
+  if (!/^[0-9]{4}$/.test(code)) {
+    alert("Type the 4-digit code the shelter's staff show you.");
     return;
   }
+  let button = document.getElementById("confirm-" + id);
+  button.disabled = true;
+  button.innerText = "Checking...";
+  apiFetch("/listings/" + id + "/collect", { method: "POST", body: JSON.stringify({ code: code }) })
+    .then(function (result) {
+      alert(result.data.message);
+      if (result.ok) document.getElementById("code-" + id).value = "";
+      button.disabled = false;
+      button.innerText = "Confirm pickup";
+      loadListings();
+    });
+}
 
-  const offers = res.data || [];
-  messageEl.innerText = "";
+// a star was clicked: send the rating (B7)
+function rateShelter(pickerId, stars) {
+  let id = pickerId.replace("rate-", "");
+  let buttons = document.querySelectorAll("#" + pickerId + " .star");
+  for (let i = 0; i < buttons.length; i++) {
+    if (i < stars) buttons[i].classList.add("on");
+    buttons[i].disabled = true;
+  }
+  apiFetch("/listings/" + id + "/rate", { method: "POST", body: JSON.stringify({ stars: stars }) })
+    .then(function (result) {
+      showMessage(result.data.message, result.ok ? "green-text" : "red-text");
+      loadListings();
+    });
+}
 
-  if (offers.length === 0) {
-    messageEl.innerText = "No offers found for this listing.";
-    messageEl.className = "orange-text";
-    tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>No offers recorded.</td></tr>";
-    return;
+// ---------------- timeline of one listing (A1) ----------------
+
+function offerStatusText(o) {
+  if (o.status == "PENDING") return o.active ? "<b class='orange-text'>Being asked now</b>" : "Waiting in line";
+  if (o.status == "ACCEPTED") return "<b class='green-text'>Accepted</b>";
+  if (o.status == "PASSED") return "Said no";
+  if (o.status == "LAPSED") return "Did not reply in 10 minutes";
+  return "Not needed any more";
+}
+
+function findListing(id) {
+  for (let i = 0; i < listings.length; i++) {
+    if (listings[i]._id == id) return listings[i];
+  }
+  return null;
+}
+
+function viewOffers(id) {
+  openOffersFor = id;
+  let listing = findListing(id);
+  document.getElementById("offersListingTitle").innerText = listing ? listing.description : "";
+  document.getElementById("offersSection").classList.remove("hidden");
+  loadOffers(id);
+  document.getElementById("offersSection").scrollIntoView();
+}
+
+// every step of the listing, from posting to collection, sorted by time
+function buildTimeline(l, offers) {
+  let events = [];
+  function add(time, text, kind) {
+    if (time) events.push({ time: new Date(time).getTime(), text: text, kind: kind || "" });
   }
 
-  offers.forEach(function (offer) {
-    const tr = document.createElement("tr");
+  add(l.createdAt, "Posted " + l.quantity + " meals of " + escapeHtml(l.description));
+  if (l.matchedAt) add(l.matchedAt, offers.length + " shelter" + (offers.length == 1 ? " was" : "s were") + " ranked for this food");
 
-    if (offer.status === "ACCEPTED") {
-      tr.classList.add("accepted-row");
-    } else if (offer.status === "PASSED" || offer.status === "EXPIRED") {
-      tr.classList.add("passed-row");
+  for (let i = 0; i < offers.length; i++) {
+    let o = offers[i];
+    if (!o.activeSince) continue;   // never asked
+    let name = escapeHtml(o.recipient ? o.recipient.name : "A shelter");
+    add(o.activeSince, "Asked " + name + " (score " + o.score + ")", "wait");
+    if (o.status == "PASSED") add(o.updatedAt, name + " said no, so the rest were scored again", "bad");
+    if (o.status == "LAPSED") add(o.updatedAt, name + " did not reply in 10 minutes, so it moved on", "bad");
+    if (o.status == "ACCEPTED") add(l.acceptedAt || o.updatedAt, name + " accepted and got a handover code");
+  }
+
+  if (l.collectedAt) add(l.collectedAt, "Collected: the code was checked at the kitchen");
+  if (l.status == "EXPIRED") add(l.pickupDeadline, "The deadline passed and nobody collected it", "bad");
+  if (l.ratingOfShelter && l.ratingOfShelter.stars) add(l.ratingOfShelter.at, "You rated the shelter " + l.ratingOfShelter.stars + " &#9733;");
+  if (l.ratingOfFood && l.ratingOfFood.stars) add(l.ratingOfFood.at, "The shelter rated your food " + l.ratingOfFood.stars + " &#9733;");
+
+  events.sort(function (a, b) { return a.time - b.time; });
+
+  let html = "";
+  for (let i = 0; i < events.length; i++) {
+    html += "<li class='" + events[i].kind + "'><span class='when'>" + clockTime(events[i].time) + "</span>" + events[i].text + "</li>";
+  }
+  return html;
+}
+
+function loadOffers(id) {
+  apiFetch("/listings/" + id + "/offers").then(function (result) {
+    let table = document.getElementById("offersTable");
+    let message = document.getElementById("offersMessage");
+    if (!result.ok) {
+      message.innerText = result.data.message || "Could not load the offers.";
+      message.className = "red-text";
+      return;
     }
+    let listing = findListing(id);
+    if (listing) document.getElementById("timeline").innerHTML = buildTimeline(listing, result.data);
 
-    const shelterName = offer.recipient ? escapeHtml(offer.recipient.name) : "Unknown";
-    const locality = offer.recipient && offer.recipient.locality ? escapeHtml(offer.recipient.locality) : "-";
-    const activeDisplay = offer.active
-      ? "<span class='green-text'><b>Active</b></span>"
-      : "No";
-
-    tr.innerHTML = `
-      <td>#${offer.rank}</td>
-      <td>${shelterName}</td>
-      <td>${locality}</td>
-      <td><b>${offer.score}</b> / 100</td>
-      <td><b>${escapeHtml(offer.status)}</b></td>
-      <td>${activeDisplay}</td>
-    `;
-    tbody.appendChild(tr);
+    message.innerText = result.data.length == 0 ? "No shelter has been asked." : "";
+    table.innerHTML = "<tr><th>Rank</th><th>Shelter</th><th>Area</th><th>Distance</th><th>Score</th><th>Status</th></tr>";
+    for (let i = 0; i < result.data.length; i++) {
+      let o = result.data[i];
+      let row = document.createElement("tr");
+      if (o.status == "ACCEPTED") row.classList.add("accepted-row");
+      if (o.status == "PASSED" || o.status == "LAPSED" || o.status == "EXPIRED") row.classList.add("passed-row");
+      row.innerHTML =
+        "<td>#" + o.rank + "</td>" +
+        "<td>" + escapeHtml(o.recipient ? o.recipient.name : "Deleted shelter") + "</td>" +
+        "<td>" + escapeHtml(o.recipient ? o.recipient.locality : "") + "</td>" +
+        "<td>" + (o.km != null ? o.km + " km" : "-") + "</td>" +
+        "<td><b>" + o.score + "</b> / 100</td>" +
+        "<td>" + offerStatusText(o) + "</td>";
+      table.append(row);
+    }
   });
 }
 
 function closeOffers() {
-  currentSelectedListingId = null;
-  currentSelectedListingTitle = "";
+  openOffersFor = null;
   document.getElementById("offersSection").classList.add("hidden");
 }
 
-// ── 5. Refresh All ────────────────────────────────────────────────────────────
-async function refreshAll() {
-  const refreshBtn = document.getElementById("refreshBtn");
-  if (refreshBtn) {
-    refreshBtn.disabled = true;
-    refreshBtn.innerText = "Refreshing...";
-  }
-
-  await loadMyListings();
-
-  if (currentSelectedListingId) {
-    await viewOffers(currentSelectedListingId, currentSelectedListingTitle);
-  }
-
-  if (refreshBtn) {
-    refreshBtn.disabled = false;
-    refreshBtn.innerText = "Refresh";
-  }
+function refreshAll() {
+  let button = document.getElementById("refreshBtn");
+  button.disabled = true;
+  button.innerText = "Refreshing...";
+  loadListings().then(function () {
+    button.disabled = false;
+    button.innerText = "Refresh";
+  });
 }
-
-// Initial load
-loadMyListings();
