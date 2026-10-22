@@ -1,5 +1,6 @@
-require('dotenv').config();
 const path = require('path');
+// load backend/.env even when the server is started from another folder
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -7,6 +8,8 @@ const authRoutes          = require('./routes/authRoutes');
 const organisationRoutes  = require('./routes/organisationRoutes');
 const listingRoutes       = require('./routes/listingRoutes');
 const offerRoutes         = require('./routes/offerRoutes');
+const statsRoutes         = require('./routes/statsRoutes');
+const adminRoutes         = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -31,6 +34,12 @@ app.use('/api/listings', listingRoutes);
 
 // Offer handling (recipient accept / pass)
 app.use('/api/offers', offerRoutes);
+
+// Live numbers for the home page and the impact page
+app.use('/api/stats', statsRoutes);
+
+// Admin: verify or reject shelters
+app.use('/api/admin', adminRoutes);
 
 // ── Security middleware ────────────────────────────────────────────────────────
 // Prevent access to /backend directory or any hidden files (.env, .git, etc.)
@@ -73,6 +82,10 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
+  if (!process.env.MONGO_URI || !process.env.JWT_SECRET) {
+    console.error('Missing MONGO_URI or JWT_SECRET. Copy backend/.env.example to backend/.env and fill it in.');
+    process.exit(1);
+  }
   await connectDB();
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
