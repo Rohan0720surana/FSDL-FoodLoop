@@ -20,6 +20,7 @@
     <a href="donor.html">Donor</a>
     <a href="recipient.html">Recipient</a>
     <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
   </div>
 
   <div class="content">
@@ -39,8 +40,10 @@
     <ol>
       <li>A kitchen (donor) posts the food, the quantity and the pickup deadline.</li>
       <li>FoodLoop gives every nearby shelter (recipient) a score and ranks them.</li>
-      <li>The top-ranked shelter gets the offer. If they pass, it goes to the next one.</li>
-      <li>The shelter's own staff come and collect the food. No delivery rider is needed.</li>
+      <li>The top-ranked shelter gets the offer and has 10 minutes to reply. If they pass or do not reply,
+        the rest are scored again with the time left and the best one is asked next.</li>
+      <li>The shelter that accepts gets a 4-digit handover code. Its own staff collect the food and show the code;
+        the kitchen types it in to confirm. No delivery rider is needed.</li>
     </ol>
 
     <img src="images/handover.jpg" alt="Shelter staff collecting food at the kitchen" class="photo">
@@ -60,10 +63,10 @@
       <tr><td>Reliability</td><td>10%</td><td>Did they collect on time before?</td></tr>
     </table>
 
-    <h2>Our numbers so far</h2>
-    <div class="box">
-      <p id="stats"></p>
-    </div>
+    <h2>FoodLoop so far</h2>
+    <p class="caption">Counted live from the database every time this page opens.</p>
+    <div id="stats"><p>Loading...</p></div>
+    <p><a href="impact.html">See the full impact: daily meals, top kitchens and shelters &rarr;</a></p>
 
     <h2>Who can use it?</h2>
     <ul>
@@ -72,24 +75,38 @@
     </ul>
 
     <p>
-      <a href="register.html"><button class="btn">Register your organisation</button></a>
+      <a href="register-donor.html"><button class="btn">Register a kitchen</button></a>
+      <a href="register-recipient.html"><button class="btn">Register a shelter</button></a>
+      <a href="login.html"><button class="btn btn-grey">Log in</button></a>
     </p>
   </div>
 
-  <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
-  </div>
-
+  <script src="api.js"></script>
   <script>
-    // numbers shown on the home page
-    let meals = 2847;
-    let organisations = 85;
-    let averageMinutes = 8.4;
+    setupNavbar();
 
-    document.getElementById("stats").innerHTML =
-      "Meals redistributed: <b>" + meals + "</b><br>" +
-      "Organisations on FoodLoop: <b>" + organisations + "</b><br>" +
-      "Average time to find a match: <b>" + averageMinutes + " minutes</b>";
+    // live numbers from GET /api/stats
+    apiFetch("/stats").then(function (result) {
+      let box = document.getElementById("stats");
+      if (!result.ok) {
+        box.innerHTML = "<p class='red-text'>" + escapeHtml(result.data.message) + "</p>";
+        return;
+      }
+      let s = result.data;
+      let stats = [
+        [s.mealsCollected, "meals collected by shelters"],
+        [s.pickupsCompleted, "pickups completed"],
+        [s.listingsPosted, "food listings posted"],
+        [s.shelters, "verified shelters"],
+        [s.donors, "donor kitchens"],
+        [s.averageMinutesToAccept == null ? "-" : s.averageMinutesToAccept + " min", "average time for a shelter to accept"]
+      ];
+      let html = "";
+      for (let i = 0; i < stats.length; i++) {
+        html += "<div class='stat'><b>" + stats[i][0] + "</b>" + stats[i][1] + "</div>";
+      }
+      box.innerHTML = html;
+    });
   </script>
 
 </body>

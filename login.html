@@ -4,7 +4,6 @@
   <title>FoodLoop - Login</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
-  <script src="api.js"></script>
 </head>
 <body>
 
@@ -21,84 +20,87 @@
     <a href="donor.html">Donor</a>
     <a href="recipient.html">Recipient</a>
     <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
   </div>
 
   <div class="content">
     <h2>Login</h2>
+    <p>Kitchens, shelters and FoodLoop admins log in here. You are taken to your own dashboard.</p>
 
     <form onsubmit="return login()">
-      <p>
-        Email:<br>
-        <input type="text" id="email" placeholder="Enter your email">
-      </p>
-      <p>
-        Password:<br>
-        <input type="password" id="password" placeholder="Enter your password">
-      </p>
-      <p id="loginError" class="red-text"></p>
-      <input type="submit" value="Login" class="btn">
+      <table class="form-table">
+        <tr>
+          <td><label for="email">Email</label></td>
+          <td><input type="text" id="email" placeholder="Enter your email"></td>
+        </tr>
+        <tr>
+          <td><label for="password">Password</label></td>
+          <td><input type="password" id="password" placeholder="Enter your password"></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>
+            <p id="loginError" class="red-text"></p>
+            <input type="submit" value="Login" class="btn" id="loginBtn">
+          </td>
+        </tr>
+      </table>
     </form>
 
-    <div class="box">
-      <p><b>Demo accounts</b> (register these via the Register page, or seed the database)</p>
-      <table>
-        <tr><th>Organisation</th><th>Email</th><th>Password</th><th>Opens</th></tr>
-        <tr><td>St. Xavier's College Canteen</td><td>canteen@stxaviers.edu</td><td>canteen123</td><td>Donor page</td></tr>
-        <tr><td>Sneh Sadan Balgram</td><td>contact@snehsadan.org</td><td>shelter123</td><td>Recipient page</td></tr>
-      </table>
-    </div>
-
     <p>New organisation? <a href="register.html">Register here</a></p>
+
+    <div class="box">
+      <p><b>Demo accounts</b> (created by <code>npm run seed</code>)</p>
+      <table>
+        <tr><th>Organisation</th><th>Email</th><th>Password</th><th>Role</th></tr>
+        <tr><td>St. Xavier's College Canteen, Dhobi Talao</td><td>canteen@stxaviers.edu</td><td>canteen123</td><td>Donor</td></tr>
+        <tr><td>Regency Banquet Hall, Andheri West</td><td>banquet@regency.test</td><td>regency123</td><td>Donor</td></tr>
+        <tr><td>Sneh Sadan Balgram, Dadar</td><td>contact@snehsadan.org</td><td>shelter123</td><td>Recipient</td></tr>
+        <tr><td>Asha Deep Night Shelter, Bandra East</td><td>ashadeep@shelters.test</td><td>shelter123</td><td>Recipient</td></tr>
+        <tr><td>FoodLoop Admin</td><td>admin@foodloop.test</td><td>admin123</td><td>Admin (verifies shelters)</td></tr>
+      </table>
+      <p class="caption">The other shelters (kripa@, sevasadan@, prakash@shelters.test) also use shelter123.
+        To try a donor and a shelter at the same time, use a normal window and a private window.</p>
+    </div>
   </div>
 
-  <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
-  </div>
-
+  <script src="api.js"></script>
   <script>
-    function login() {
-      var email    = document.getElementById("email").value.trim();
-      var password = document.getElementById("password").value;
-      var error    = document.getElementById("loginError");
+    setupNavbar();
 
+    function login() {
+      let email = document.getElementById("email").value.trim();
+      let password = document.getElementById("password").value;
+      let error = document.getElementById("loginError");
+      let button = document.getElementById("loginBtn");
       error.innerText = "";
 
-      if (email === "" || password === "") {
+      if (email == "" || password == "") {
         error.innerText = "Please enter your email and password.";
         return false;
       }
 
-      // Disable submit while the request is in flight
-      var submitBtn = document.querySelector("input[type='submit']");
-      submitBtn.disabled = true;
-      submitBtn.value = "Logging in...";
+      button.disabled = true;
+      button.value = "Logging in...";
 
       apiFetch("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email: email, password: password }),
+        body: JSON.stringify({ email: email, password: password })
       }).then(function (result) {
-        submitBtn.disabled = false;
-        submitBtn.value = "Login";
+        button.disabled = false;
+        button.value = "Login";
 
         if (result.ok) {
           saveSession(result.data.token, result.data.organisation);
-          // Redirect based on org type returned by the API
-          if (result.data.organisation.type === "DONOR") {
-            window.location.href = "donor.html";
-          } else {
-            window.location.href = "recipient.html";
-          }
+          // open the dashboard for this kind of account
+          window.location.href = dashboardFor(result.data.organisation.type);
         } else {
-          // Show the server's error message on the page (not an alert)
-          error.innerText = (result.data && result.data.message)
-            ? result.data.message
-            : "Login failed. Please try again.";
+          error.innerText = result.data.message || "Login failed. Please try again.";
         }
       });
 
-      return false;  // always prevent native form submission
+      return false;   // stop the form from reloading the page
     }
   </script>
-
 </body>
 </html>
