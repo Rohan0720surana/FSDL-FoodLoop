@@ -1,344 +1,285 @@
-// recipient.js - Recipient dashboard connected to FoodLoop API
+// recipient.js - the shelter's dashboard: today's room, offers to accept or
+// pass, the pickups it has accepted (with handover codes and a printable slip),
+// and rating the food after collecting it.
 
-// ── 1. Page guard & Authentication ───────────────────────────────────────────
-const token = getToken();
-const org = getOrg();
+let org = requireLogin("RECIPIENT");
+let offers = [];    // offers waiting for my reply
+let pickups = [];   // food I accepted
+let me = null;      // my organisation, fresh from the server
 
-if (!token || !org || org.type !== "RECIPIENT") {
-  window.location.href = "login.html";
-}
-
-function logout() {
-  clearSession();
-  window.location.href = "login.html";
-}
-
-// ── State ─────────────────────────────────────────────────────────────────────
-let currentOffers = [];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function formatTime(ms) {
-  if (ms <= 0) return "Expired";
-  const totalSeconds = Math.floor(ms / 1000);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  let s = totalSeconds % 60;
-  if (h > 0) return h + "h " + m + "m";
-  if (s < 10) s = "0" + s;
-  return m + "m " + s + "s";
-}
-
-// ── Initial Display from Session ──────────────────────────────────────────────
 if (org) {
-  const headerOrg = document.getElementById("headerOrg");
-  if (headerOrg) {
-    headerOrg.innerText = org.name + (org.locality ? ", " + org.locality : "");
-  }
-
-  const hour = new Date().getHours();
-  let timeGreeting = "Good evening";
-  if (hour < 12) {
-    timeGreeting = "Good morning";
-  } else if (hour < 17) {
-    timeGreeting = "Good afternoon";
-  }
-
-  const greetingEl = document.getElementById("greeting");
-  if (greetingEl) {
-    greetingEl.innerHTML = "<b>" + timeGreeting + ", " + escapeHtml(org.name) + "!</b>";
-  }
-
-  // Display initial capacity from session
-  const capacityText = document.getElementById("capacityText");
-  if (capacityText) {
-    const rem = org.remainingCapacityToday != null ? org.remainingCapacityToday : (org.capacityPerDay || 0);
-    capacityText.innerHTML = "Remaining capacity today: <b>" + rem + " meals</b>" +
-      (org.capacityPerDay != null ? " (Daily capacity: " + org.capacityPerDay + " meals)" : "");
-  }
+  setupNavbar();
+  document.getElementById("headerOrg").innerText = org.name + ", " + org.locality;
+  document.getElementById("greeting").innerHTML =
+    "<b>" + greeting() + ", " + escapeHtml(org.name) + "!</b>";
+  refreshAll();
+  setInterval(updateTimes, 1000);   // countdowns every second
+  setInterval(refreshAll, 15000);   // fresh data every 15 seconds
 }
 
-// ── 1. Load Organisation Details & Remaining Capacity ─────────────────────────
-async function loadCapacity() {
-  if (!org || !org._id) return;
+function refreshAll() {
+  let button = document.getElementById("refreshBtn");
+  button.disabled = true;
+  button.innerText = "Refreshing...";
+  return loadMe()
+    .then(loadOffers)
+    .then(loadPickups)
+    .then(function () {
+      showSummary();
+      button.disabled = false;
+      button.innerText = "Refresh";
+    });
+}
 
-  const capacityText = document.getElementById("capacityText");
-  const res = await apiFetch("/organisations/" + org._id);
+function isToday(date) {
+  return date && new Date(date).toDateString() == new Date().toDateString();
+}
 
-  if (res.ok && res.data) {
-    const currentOrg = res.data;
-    saveSession(getToken(), currentOrg);
+// ---------------- my organisation: capacity and verification ----------------
 
-    const headerOrg = document.getElementById("headerOrg");
-    if (headerOrg) {
-      headerOrg.innerText = currentOrg.name + (currentOrg.locality ? ", " + currentOrg.locality : "");
+function loadMe() {
+  return apiFetch("/organisations/me").then(function (result) {
+    if (result.status == 401) {
+      logout();
+      return;
     }
+    if (!result.ok) return;
+    me = result.data;
+    saveSession(getToken(), me);
 
-    if (capacityText) {
-      const rem = currentOrg.remainingCapacityToday != null ? currentOrg.remainingCapacityToday : (currentOrg.capacityPerDay || 0);
-      capacityText.innerHTML = "Remaining capacity today: <b>" + rem + " meals</b>" +
-        (currentOrg.capacityPerDay != null ? " (Daily capacity: " + currentOrg.capacityPerDay + " meals)" : "");
-    }
-  } else if (!capacityText.innerHTML) {
-    // Fall back to session values if API request fails
-    const rem = org.remainingCapacityToday != null ? org.remainingCapacityToday : (org.capacityPerDay || 0);
-    capacityText.innerHTML = "Remaining capacity today: <b>" + rem + " meals</b>" +
-      (org.capacityPerDay != null ? " (Daily capacity: " + org.capacityPerDay + " meals)" : "");
-  }
-}
+    document.getElementById("capacityText").innerHTML =
+      "Room left today: <b>" + me.remainingCapacityToday + " meals</b> (" +
+      (me.capacityPerDay - me.remainingCapacityToday) + " of " + me.capacityPerDay + " used)" +
+      "<br><span class='caption'>Food you accept: " + me.foodTypesAccepted.map(foodTypeName).join(", ") +
+      " &middot; Your staff travel up to " + me.serviceRadiusKm + " km" +
+      " &middot; Reliability " + Math.round(me.reliabilityScore * 100) + "%</span>";
 
-// ── 2. Load Active Offers (GET /api/offers/mine) ──────────────────────────────
-async function loadOffers() {
-  const statusMsg = document.getElementById("statusMessage");
-  const container = document.getElementById("offersContainer");
-
-  if (!currentOffers || currentOffers.length === 0) {
-    statusMsg.innerText = "Loading offers...";
-    statusMsg.className = "";
-  }
-
-  const res = await apiFetch("/offers/mine");
-
-  if (!res.ok) {
-    statusMsg.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Failed to load offers.";
-    statusMsg.className = "red-text";
-    return;
-  }
-
-  statusMsg.innerText = "";
-  currentOffers = res.data || [];
-  renderOffers(currentOffers);
-}
-
-function renderOffers(offers) {
-  const container = document.getElementById("offersContainer");
-  container.innerHTML = "";
-
-  if (!offers || offers.length === 0) {
-    container.innerHTML = `
-      <div class="box">
-        <p style="text-align: center; color: #666; margin: 15px 0;">
-          No offers right now. Check back soon or click Refresh.
-        </p>
-      </div>
-    `;
-    return;
-  }
-
-  offers.forEach(function (offer) {
-    const listing = offer.listing || {};
-    const donor = listing.donor || {};
-    const donorName = donor.name || "Unknown donor";
-    const donorLocality = donor.locality || "";
-
-    const msLeft = listing.pickupDeadline
-      ? new Date(listing.pickupDeadline).getTime() - Date.now()
-      : 0;
-
-    let timeClass = "green-text";
-    let timeText = formatTime(msLeft);
-    if (msLeft <= 0) {
-      timeText = "Expired";
-      timeClass = "red-text";
-    } else if (msLeft < 15 * 60000) {
-      timeClass = "red-text";
-    } else if (msLeft < 60 * 60000) {
-      timeClass = "orange-text";
-    }
-
-    let breakdownHtml = "";
-    if (offer.breakdown) {
-      const b = offer.breakdown;
-      breakdownHtml = `
-        <button class="link-btn" onclick="toggleWhy('${offer._id}')">Why?</button>
-        <div id="why-${offer._id}" class="hidden caption" style="margin-top: 5px; padding: 6px; background-color: #eee; border-radius: 4px;">
-          Time: ${(b.time != null ? Math.round(b.time * 100) : 0)}% &middot; 
-          Proximity: ${(b.proximity != null ? Math.round(b.proximity * 100) : 0)}% &middot; 
-          Capacity: ${(b.capacity != null ? Math.round(b.capacity * 100) : 0)}% &middot; 
-          Food type: ${(b.foodType != null ? Math.round(b.foodType * 100) : 0)}% &middot; 
-          Reliability: ${(b.reliability != null ? Math.round(b.reliability * 100) : 0)}%
-        </div>
-      `;
-    }
-
-    const card = document.createElement("div");
-    card.className = "box";
-    card.id = "offer-card-" + offer._id;
-    card.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 260px;">
-          <h3 style="margin: 0 0 6px 0; color: #2e7d32;">${escapeHtml(listing.description || "Food listing")}</h3>
-          <p style="margin: 3px 0;">
-            <b>Food type:</b> ${escapeHtml(listing.foodType || "N/A")} &middot; 
-            <b>Quantity:</b> ${listing.quantity || 0} meals
-          </p>
-          <p style="margin: 3px 0;">
-            <b>Donor:</b> ${escapeHtml(donorName)}${donorLocality ? " (" + escapeHtml(donorLocality) + ")" : ""}
-          </p>
-          <p style="margin: 3px 0;">
-            <b>Time left:</b> <span id="countdown-${offer._id}" class="${timeClass}"><b>${timeText}</b></span>
-          </p>
-          <p style="margin: 3px 0;">
-            <b>Match score:</b> <b>${offer.score}</b> / 100 ${breakdownHtml}
-          </p>
-        </div>
-        <div style="margin-top: 10px;">
-          <button class="btn" id="btn-accept-${offer._id}" onclick="acceptOffer('${offer._id}')">Accept</button>
-          <button class="btn btn-grey" id="btn-pass-${offer._id}" onclick="passOffer('${offer._id}')">Pass</button>
-        </div>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-function toggleWhy(offerId) {
-  const el = document.getElementById("why-" + offerId);
-  if (el) {
-    el.classList.toggle("hidden");
-  }
-}
-
-// ── Countdown Timer (every second) ────────────────────────────────────────────
-function updateCountdowns() {
-  if (!currentOffers || currentOffers.length === 0) return;
-
-  currentOffers.forEach(function (offer) {
-    const el = document.getElementById("countdown-" + offer._id);
-    if (!el || !offer.listing || !offer.listing.pickupDeadline) return;
-
-    const msLeft = new Date(offer.listing.pickupDeadline).getTime() - Date.now();
-    el.innerText = formatTime(msLeft);
-    el.classList.remove("green-text", "orange-text", "red-text");
-
-    if (msLeft <= 0) {
-      el.innerText = "Expired";
-      el.classList.add("red-text");
-    } else if (msLeft < 15 * 60000) {
-      el.classList.add("red-text");
-    } else if (msLeft < 60 * 60000) {
-      el.classList.add("orange-text");
-    } else {
-      el.classList.add("green-text");
+    // waiting for verification, or turned down by an admin
+    let verifyNotice = document.getElementById("verifyNotice");
+    let rejectNotice = document.getElementById("rejectNotice");
+    verifyNotice.classList.add("hidden");
+    rejectNotice.classList.add("hidden");
+    if (me.rejected) {
+      rejectNotice.innerHTML = "<b>Your organisation was not approved.</b> Reason: " + escapeHtml(me.rejectionReason) +
+        "<br>Please contact FoodLoop once this is fixed, and we will check again.";
+      rejectNotice.classList.remove("hidden");
+    } else if (!me.verified) {
+      verifyNotice.classList.remove("hidden");
     }
   });
 }
-setInterval(updateCountdowns, 1000);
 
-// ── 3. Accept & Pass Actions ──────────────────────────────────────────────────
-async function acceptOffer(offerId) {
-  if (!confirm("Are you sure you want to accept this offer?")) {
-    return;
+// ---------------- today's summary (A2) ----------------
+
+function showSummary() {
+  if (!me) return;
+  let pickupsToday = 0;
+  let toCollect = 0;
+  for (let i = 0; i < pickups.length; i++) {
+    let l = pickups[i].listing;
+    if (isToday(l.acceptedAt)) pickupsToday++;
+    if (l.status == "ACCEPTED") toCollect++;
   }
+  document.getElementById("summary").innerHTML =
+    "<div class='stat'><b>" + me.remainingCapacityToday + "</b>meals of room left today</div>" +
+    "<div class='stat'><b>" + offers.length + "</b>offers waiting for your reply</div>" +
+    "<div class='stat'><b>" + toCollect + "</b>pickups to collect</div>" +
+    "<div class='stat'><b>" + pickupsToday + "</b>accepted today</div>" +
+    "<div class='stat'><b>" + (me.rating ? me.rating.average + " &#9733;" : "-") + "</b>punctuality rating from kitchens</div>";
+}
 
-  const acceptBtn = document.getElementById("btn-accept-" + offerId);
-  const passBtn = document.getElementById("btn-pass-" + offerId);
-  const actionMsg = document.getElementById("actionMessage");
+// ---------------- offers waiting for my reply ----------------
 
-  if (acceptBtn) {
-    acceptBtn.disabled = true;
-    acceptBtn.innerText = "Accepting...";
-  }
-  if (passBtn) {
-    passBtn.disabled = true;
-  }
+function loadOffers() {
+  return apiFetch("/offers/mine").then(function (result) {
+    let box = document.getElementById("offersContainer");
+    if (!result.ok) {
+      box.innerHTML = "<p class='red-text'>" + escapeHtml(result.data.message || "Could not load offers.") + "</p>";
+      return;
+    }
+    offers = result.data;
 
-  actionMsg.innerText = "Accepting offer...";
-  actionMsg.className = "";
+    if (offers.length == 0) {
+      box.innerHTML = "<div class='box'><p>No food is waiting for your reply right now. This page checks again every 15 seconds.</p></div>";
+      return;
+    }
 
-  const res = await apiFetch("/offers/" + offerId + "/accept", {
-    method: "POST",
+    box.innerHTML = "";
+    for (let i = 0; i < offers.length; i++) {
+      box.append(offerCard(offers[i]));
+    }
+    updateTimes();
   });
-
-  if (res.ok) {
-    actionMsg.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Offer accepted!";
-    actionMsg.className = "green-text";
-  } else {
-    actionMsg.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Failed to accept offer.";
-    actionMsg.className = "red-text";
-  }
-
-  // Reload offers and remaining capacity
-  await loadCapacity();
-  await loadOffers();
 }
 
-async function passOffer(offerId) {
-  if (!confirm("Are you sure you want to pass on this offer? It will move to the next shelter.")) {
-    return;
+function offerCard(offer) {
+  let listing = offer.listing;
+  let donor = listing.donor || {};
+  let b = offer.breakdown || {};
+
+  let why =
+    "Time " + b.time + " &times; 35% = " + Math.round(b.time * 350) / 10 +
+    " &nbsp;+&nbsp; Distance " + b.proximity + " &times; 25% = " + Math.round(b.proximity * 250) / 10 +
+    " &nbsp;+&nbsp; Capacity " + b.capacity + " &times; 20% = " + Math.round(b.capacity * 200) / 10 +
+    " &nbsp;+&nbsp; Food type " + b.foodType + " &times; 10% = " + Math.round(b.foodType * 100) / 10 +
+    " &nbsp;+&nbsp; Reliability " + b.reliability + " &times; 10% = " + Math.round(b.reliability * 100) / 10 +
+    " &nbsp;=&nbsp; <b>" + offer.score + "</b>";
+
+  let card = document.createElement("div");
+  card.className = "box";
+  card.innerHTML =
+    "<h3>" + escapeHtml(listing.description) + " <span class='caption'>(" + foodTypeName(listing.foodType) + ")</span></h3>" +
+    "<p><b>" + listing.quantity + " meals</b> from <b>" + escapeHtml(donor.name) + "</b>, " + escapeHtml(donor.locality) +
+    "<br><span class='caption'>Food rating from other shelters: " + starsText(donor.rating) + "</span>" +
+    "<br>" + (offer.km != null ? offer.km + " km away, about " + offer.driveMinutes + " min drive" : "") + "</p>" +
+    "<p>Food must be collected within: <span id='deadline-" + offer._id + "'></span>" +
+    "<br>Please reply within: <span id='reply-" + offer._id + "'></span></p>" +
+    "<p>Match score: <b>" + offer.score + " / 100</b> " +
+    "<button class='link-btn' onclick=\"toggleWhy('" + offer._id + "')\">Why?</button></p>" +
+    "<p id='why-" + offer._id + "' class='hidden caption'>" + why + "</p>" +
+    "<button class='btn' id='accept-" + offer._id + "' onclick=\"acceptOffer('" + offer._id + "', " + listing.quantity + ")\">Accept</button> " +
+    "<button class='btn btn-grey' id='pass-" + offer._id + "' onclick=\"passOffer('" + offer._id + "')\">Pass</button>";
+  return card;
+}
+
+function toggleWhy(id) {
+  document.getElementById("why-" + id).classList.toggle("hidden");
+}
+
+// countdowns for each offer - runs every second
+function updateTimes() {
+  for (let i = 0; i < offers.length; i++) {
+    let o = offers[i];
+    let deadline = document.getElementById("deadline-" + o._id);
+    let reply = document.getElementById("reply-" + o._id);
+    if (!deadline || !reply) continue;
+
+    let msToDeadline = new Date(o.listing.pickupDeadline).getTime() - Date.now();
+    deadline.innerText = formatTime(msToDeadline);
+    deadline.className = timeClass(msToDeadline);
+
+    let msToReply = new Date(o.replyBy).getTime() - Date.now();
+    reply.innerText = msToReply > 0 ? formatTime(msToReply) : "Time is up - moving to the next shelter";
+    reply.className = msToReply < 3 * 60000 ? "red-text" : "orange-text";
   }
+}
 
-  const acceptBtn = document.getElementById("btn-accept-" + offerId);
-  const passBtn = document.getElementById("btn-pass-" + offerId);
-  const actionMsg = document.getElementById("actionMessage");
+function showAction(text, cssClass) {
+  let message = document.getElementById("actionMessage");
+  message.innerText = text;
+  message.className = cssClass;
+}
 
-  if (passBtn) {
-    passBtn.disabled = true;
-    passBtn.innerText = "Passing...";
-  }
-  if (acceptBtn) {
-    acceptBtn.disabled = true;
-  }
+// stop double clicks while a reply is being sent
+function lockButtons(id, text) {
+  let accept = document.getElementById("accept-" + id);
+  let pass = document.getElementById("pass-" + id);
+  if (accept) accept.disabled = true;
+  if (pass) pass.disabled = true;
+  showAction(text, "");
+}
 
-  actionMsg.innerText = "Passing offer...";
-  actionMsg.className = "";
-
-  const res = await apiFetch("/offers/" + offerId + "/pass", {
-    method: "POST",
+function acceptOffer(id, meals) {
+  if (!confirm("Accept " + meals + " meals? Your staff will need to collect them before the deadline.")) return;
+  lockButtons(id, "Accepting...");
+  apiFetch("/offers/" + id + "/accept", { method: "POST" }).then(function (result) {
+    showAction(result.data.message, result.ok ? "green-text" : "red-text");
+    refreshAll();
   });
-
-  if (res.ok) {
-    actionMsg.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Offer passed to next recipient.";
-    actionMsg.className = "green-text";
-  } else {
-    actionMsg.innerText = (res.data && res.data.message)
-      ? res.data.message
-      : "Failed to pass offer.";
-    actionMsg.className = "red-text";
-  }
-
-  // Reload offers and remaining capacity
-  await loadCapacity();
-  await loadOffers();
 }
 
-// ── 4. Refresh Button & Auto-reload ───────────────────────────────────────────
-async function refreshAll() {
-  const refreshBtn = document.getElementById("refreshBtn");
-  if (refreshBtn) {
-    refreshBtn.disabled = true;
-    refreshBtn.innerText = "Refreshing...";
-  }
-
-  await loadCapacity();
-  await loadOffers();
-
-  if (refreshBtn) {
-    refreshBtn.disabled = false;
-    refreshBtn.innerText = "Refresh";
-  }
+function passOffer(id) {
+  if (!confirm("Pass on this food? It will be offered to the next shelter.")) return;
+  lockButtons(id, "Passing...");
+  apiFetch("/offers/" + id + "/pass", { method: "POST" }).then(function (result) {
+    showAction(result.data.message, result.ok ? "green-text" : "red-text");
+    refreshAll();
+  });
 }
 
-// Auto-reload offers every 15 seconds
-setInterval(loadOffers, 15000);
+// ---------------- my pickups ----------------
 
-// ── Initial load ──────────────────────────────────────────────────────────────
-loadCapacity();
-loadOffers();
+function loadPickups() {
+  return apiFetch("/offers/pickups").then(function (result) {
+    let box = document.getElementById("pickupsContainer");
+    if (!result.ok) {
+      box.innerHTML = "<p class='red-text'>" + escapeHtml(result.data.message || "Could not load pickups.") + "</p>";
+      return;
+    }
+    pickups = result.data;
+    if (pickups.length == 0) {
+      box.innerHTML = "<div class='box'><p>You have not accepted any food yet.</p></div>";
+      return;
+    }
+
+    let html = "<table><tr><th>Food</th><th>Collect from</th><th>Handover code</th><th>Status</th></tr>";
+    for (let i = 0; i < pickups.length; i++) {
+      let l = pickups[i].listing;
+      let donor = l.donor || {};
+      let directions = "https://www.google.com/maps/dir/?api=1&destination=" + donor.lat + "," + donor.lng;
+
+      let status;
+      if (l.status == "COLLECTED") {
+        status = "<span class='badge badge-collected'>Collected</span><br>";
+        // rate the food once (B7)
+        if (l.ratingOfFood && l.ratingOfFood.stars) {
+          status += "<span class='caption'>You rated the food " + l.ratingOfFood.stars + " <span class='stars-shown'>&#9733;</span></span>";
+        } else {
+          status += "<span class='caption'>Was the food fresh?</span><br>" + starPicker("rate-" + l._id, "rateFood");
+        }
+      } else {
+        let msLeft = new Date(l.pickupDeadline).getTime() - Date.now();
+        status = "<span class='badge badge-accepted'>Go and collect</span><br>" +
+          "<span class='" + timeClass(msLeft) + "'>" + formatTime(msLeft) + " left</span><br>" +
+          "<button class='btn btn-small' onclick='printSlip(" + i + ")'>Print slip</button>";
+      }
+
+      html +=
+        "<tr" + (l.status == "COLLECTED" ? " class='passed-row'" : "") + ">" +
+        "<td>" + l.quantity + " meals of " + escapeHtml(l.description) + "</td>" +
+        "<td><b>" + escapeHtml(donor.name) + "</b><br>" + escapeHtml(donor.address) +
+        "<br><span class='caption'>Call " + escapeHtml(donor.contactName) + ": " + escapeHtml(donor.phone) + "</span>" +
+        "<br><a href='" + directions + "' target='_blank'>Directions in Google Maps</a></td>" +
+        "<td>" + (l.status == "COLLECTED" ? escapeHtml(l.handoverCode) : "<span class='handover-code'>" + escapeHtml(l.handoverCode) + "</span>") + "</td>" +
+        "<td>" + status + "</td>" +
+        "</tr>";
+    }
+    html += "</table>";
+    box.innerHTML = html;
+  });
+}
+
+// a star was clicked: send the food rating (B7)
+function rateFood(pickerId, stars) {
+  let listingId = pickerId.replace("rate-", "");
+  let buttons = document.querySelectorAll("#" + pickerId + " .star");
+  for (let i = 0; i < buttons.length; i++) {
+    if (i < stars) buttons[i].classList.add("on");
+    buttons[i].disabled = true;
+  }
+  apiFetch("/offers/pickups/" + listingId + "/rate", { method: "POST", body: JSON.stringify({ stars: stars }) })
+    .then(function (result) {
+      showAction(result.data.message, result.ok ? "green-text" : "red-text");
+      loadPickups();
+    });
+}
+
+// ---------------- printable handover slip (A4) ----------------
+
+function printSlip(index) {
+  let l = pickups[index].listing;
+  let donor = l.donor || {};
+  document.getElementById("slip").innerHTML =
+    "<h1>FoodLoop pickup slip</h1>" +
+    "<p><b>Handover code:</b> <span class='handover-code'>" + escapeHtml(l.handoverCode) + "</span></p>" +
+    "<table>" +
+    "<tr><td>Food</td><td>" + l.quantity + " meals of " + escapeHtml(l.description) + " (" + foodTypeName(l.foodType) + ")</td></tr>" +
+    "<tr><td>Collect from</td><td>" + escapeHtml(donor.name) + "<br>" + escapeHtml(donor.address) + "</td></tr>" +
+    "<tr><td>Kitchen contact</td><td>" + escapeHtml(donor.contactName) + ", " + escapeHtml(donor.phone) + "</td></tr>" +
+    "<tr><td>Collect before</td><td>" + new Date(l.pickupDeadline).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }) + "</td></tr>" +
+    "<tr><td>Collected by</td><td>" + escapeHtml(me ? me.name : org.name) + "</td></tr>" +
+    "</table>" +
+    "<p>Show this code at the kitchen. The kitchen types it into FoodLoop to confirm the pickup.</p>" +
+    "<p>Staff name: ______________________ &nbsp; Signature: ______________________</p>";
+  window.print();
+}

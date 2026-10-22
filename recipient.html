@@ -4,14 +4,13 @@
   <title>FoodLoop - Recipient Dashboard</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
-  <script src="api.js"></script>
 </head>
 <body>
 
   <div class="header">
     <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
     <h1>FoodLoop</h1>
-    <p>Recipient dashboard &middot; <span id="headerOrg">Loading...</span></p>
+    <p>Recipient dashboard &middot; <span id="headerOrg"></span></p>
   </div>
 
   <div class="navbar">
@@ -21,49 +20,54 @@
     <a href="donor.html">Donor</a>
     <a href="recipient.html" class="active">Recipient</a>
     <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
   </div>
 
   <div class="content">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-      <p id="greeting" style="margin: 0; font-size: 16px;"></p>
-      <button class="btn btn-grey" onclick="logout()">Logout</button>
+    <p id="greeting"></p>
+
+    <!-- shown only while the organisation is waiting for verification -->
+    <div id="verifyNotice" class="notice hidden">
+      <b>Waiting for verification.</b> FoodLoop checks every new shelter before sending it food offers.
+      You will start receiving offers here once your organisation is verified.
     </div>
+
+    <!-- shown if an admin turned the organisation down -->
+    <div id="rejectNotice" class="notice hidden"></div>
+
+    <!-- today's numbers, filled by recipient.js -->
+    <div id="summary"></div>
 
     <h2>Today's capacity</h2>
     <div class="box">
-      <p id="capacityText"></p>
+      <p id="capacityText">Loading...</p>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <h2>Food offered to you</h2>
-      <button class="btn btn-grey" id="refreshBtn" onclick="refreshAll()">Refresh</button>
-    </div>
-    <p>Offers are sorted by match score, best first. Click <b>Why?</b> to see how a score was worked out. You can accept or pass.</p>
+    <h2>Food offered to you <button class="btn btn-grey btn-small" id="refreshBtn" onclick="refreshAll()">Refresh</button></h2>
+    <p>You are asked one at a time, in order of match score. Reply within 10 minutes; if you pass or do not reply,
+      the food goes to the next shelter. Click <b>Why?</b> to see how the score was worked out.</p>
     <p id="actionMessage"></p>
-    <p id="statusMessage"></p>
-    <div id="offersContainer"></div>
+    <div id="offersContainer"><p>Loading...</p></div>
+
+    <h2>Your pickups</h2>
+    <p>Food you accepted. Show the handover code at the kitchen; the kitchen types it in to confirm the pickup.</p>
+    <div id="pickupsContainer"><p>Loading...</p></div>
 
     <h2>How the score is worked out</h2>
-    <p>
-      Score = 35% time + 25% distance + 20% capacity + 10% food type + 10% reliability.
-      A kitchen that is too far to reach before the deadline is not offered at all.
-    </p>
-
-    <h2>Today's pickup</h2>
-    <div class="box">
-      <p>
-        <b>Collect from:</b> St. Xavier's College Canteen, Dhobi Talao<br>
-        <b>Food:</b> 22 meals of paneer tikka trays<br>
-        <b>Handover code:</b> 4827 (show this at the kitchen)
-      </p>
-      <a href="map.html"><button class="btn">See it on the map</button></a>
-    </div>
+    <table>
+      <tr><th>Factor</th><th>Weight</th><th>How it is measured (0 to 1)</th></tr>
+      <tr><td>Time</td><td>35%</td><td>1 &minus; drive time &divide; time left before the deadline</td></tr>
+      <tr><td>Distance</td><td>25%</td><td>1 &minus; distance &divide; how far your staff can travel</td></tr>
+      <tr><td>Capacity</td><td>20%</td><td>meals offered &divide; room you have left today</td></tr>
+      <tr><td>Food type</td><td>10%</td><td>1 (you only get food types you accept)</td></tr>
+      <tr><td>Reliability</td><td>10%</td><td>your pickup record; it goes up each time you collect</td></tr>
+    </table>
   </div>
 
-  <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
-  </div>
+  <!-- printable handover slip: hidden on screen, the only thing printed (see style.css) -->
+  <div id="slip"></div>
 
+  <script src="api.js"></script>
   <script src="recipient.js"></script>
 </body>
 </html>
