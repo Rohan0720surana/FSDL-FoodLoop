@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Register as a donor</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
+</head>
+<body>
+
+  <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
+    <h1>FoodLoop</h1>
+    <p>Register a donor kitchen</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html" class="active">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
+  </div>
+
+  <div class="content">
+    <h2>Donor registration</h2>
+    <p>For kitchens that give surplus food. Registering a shelter instead? <a href="register-recipient.html">Use the recipient form</a>.</p>
+
+    <p id="serverError" class="red-text"></p>
+
+    <form onsubmit="return submitDonor()" onreset="clearErrors()">
+      <table class="form-table">
+        <tr><th colspan="2">Your kitchen</th></tr>
+        <tr>
+          <td><label for="orgName">Kitchen name</label></td>
+          <td><input type="text" id="orgName" placeholder="e.g. St. Xavier's College Canteen">
+            <span class="error" id="err-orgName"></span></td>
+        </tr>
+        <tr>
+          <td><label for="category">Type of kitchen</label></td>
+          <td>
+            <select id="category">
+              <option value="">-- Select --</option>
+              <option>Restaurant</option>
+              <option>Hotel</option>
+              <option>College canteen</option>
+              <option>Office canteen</option>
+              <option>Banquet hall</option>
+              <option>Caterer</option>
+            </select>
+            <span class="error" id="err-category"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="fssai">FSSAI licence number</label></td>
+          <td><input type="text" id="fssai" maxlength="14" placeholder="14 digits">
+            <span class="hint">Printed on your food licence. Every food business in India needs one.</span>
+            <span class="error" id="err-fssai"></span></td>
+        </tr>
+
+        <tr><th colspan="2">Where you are</th></tr>
+        <tr>
+          <td><label for="address">Address</label></td>
+          <td><textarea id="address" rows="3" placeholder="Building, road, pin code"></textarea>
+            <span class="error" id="err-address"></span></td>
+        </tr>
+        <tr>
+          <td><label for="area">Area</label></td>
+          <td>
+            <select id="area"><option value="">-- Select your area --</option></select>
+            <span class="hint">Used to work out how far each shelter is from you.</span>
+            <span class="error" id="err-area"></span>
+          </td>
+        </tr>
+
+        <tr><th colspan="2">Contact person</th></tr>
+        <tr>
+          <td><label for="contact">Name</label></td>
+          <td><input type="text" id="contact" placeholder="Who shelters should call">
+            <span class="error" id="err-contact"></span></td>
+        </tr>
+        <tr>
+          <td><label for="mobile">Mobile number</label></td>
+          <td><input type="text" id="mobile" maxlength="10" placeholder="10 digits">
+            <span class="error" id="err-mobile"></span></td>
+        </tr>
+
+        <tr><th colspan="2">Your login</th></tr>
+        <tr>
+          <td><label for="email">Email</label></td>
+          <td><input type="text" id="email" placeholder="you@kitchen.com">
+            <span class="error" id="err-email"></span></td>
+        </tr>
+        <tr>
+          <td><label for="password">Password</label></td>
+          <td><input type="password" id="password" placeholder="At least 6 characters">
+            <span class="error" id="err-password"></span></td>
+        </tr>
+        <tr>
+          <td><label for="confirmPassword">Confirm password</label></td>
+          <td><input type="password" id="confirmPassword" placeholder="Type it again">
+            <span class="error" id="err-confirmPassword"></span></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><label><input type="checkbox" id="terms"> The food we share will be fresh, safely stored and labelled.
+            </label><span class="error" id="err-terms"></span></td>
+        </tr>
+      </table>
+
+      <input type="submit" value="Register kitchen" class="btn" id="submitBtn">
+      <input type="reset" value="Clear form" class="btn btn-grey">
+    </form>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="areas.js"></script>
+  <script src="register.js"></script>
+  <script>
+    setupNavbar();
+    fillAreaSelect("area");
+    watchFields();   // check each field as soon as you leave it
+
+    function submitDonor() {
+      clearErrors();
+      let ok = checkAllFields();
+      if (!document.getElementById("terms").checked) {
+        showError("terms", "Please confirm the food safety promise.");
+        ok = false;
+      }
+      if (!ok) return false;
+
+      let body = commonBody("DONOR");
+      body.fssaiLicence = document.getElementById("fssai").value.trim();
+      sendRegistration(body);
+      return false;   // stop the browser's own form submit
+    }
+  </script>
+</body>
+</html>

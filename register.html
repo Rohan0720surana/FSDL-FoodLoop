@@ -4,7 +4,6 @@
   <title>FoodLoop - Register</title>
   <link rel="stylesheet" type="text/css" href="style.css">
   <link rel="icon" href="images/logo.svg">
-  <script src="api.js"></script>
 </head>
 <body>
 
@@ -21,245 +20,33 @@
     <a href="donor.html">Donor</a>
     <a href="recipient.html">Recipient</a>
     <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
   </div>
 
   <div class="content">
-    <h2>Registration Form</h2>
+    <h2>Who are you registering?</h2>
+    <p>Kitchens that give food and organisations that receive it fill in different forms, because we need different details from each.</p>
 
-    <!-- server-side error banner -->
-    <p id="serverError" class="red-text"></p>
+    <div class="choice">
+      <h3>Donor (kitchen)</h3>
+      <p>Restaurants, hotels, college and office canteens, banquet halls and caterers that have surplus food to give.</p>
+      <p class="caption">We ask for your kitchen's address and FSSAI licence number.</p>
+      <a href="register-donor.html"><button class="btn">Register as a donor</button></a>
+    </div>
 
-    <form onsubmit="return submitRegister()" onreset="clearErrors()">
-      <table>
-        <tr>
-          <td>I am a:</td>
-          <td>
-            <input type="radio" name="role" value="Donor"> Donor (kitchen)
-            <input type="radio" name="role" value="Recipient"> Recipient (shelter / NGO)
-            <span class="error" id="err-role"></span>
-          </td>
-        </tr>
-        <tr>
-          <td>Organisation name:</td>
-          <td><input type="text" id="orgName" placeholder="e.g. St. Xavier's College Canteen"><span class="error" id="err-orgName"></span></td>
-        </tr>
-        <tr>
-          <td>Type:</td>
-          <td>
-            <select id="orgType">
-              <option value="">-- Select --</option>
-              <option>Restaurant</option>
-              <option>College canteen</option>
-              <option>Banquet hall</option>
-              <option>NGO</option>
-              <option>Shelter</option>
-              <option>Community kitchen</option>
-            </select>
-            <span class="error" id="err-orgType"></span>
-          </td>
-        </tr>
-        <tr>
-          <td>Contact person:</td>
-          <td><input type="text" id="contact" placeholder="Enter full name"><span class="error" id="err-contact"></span></td>
-        </tr>
-        <tr>
-          <td>Mobile number:</td>
-          <td><input type="text" id="mobile" placeholder="Enter 10 digit mobile number"><span class="error" id="err-mobile"></span></td>
-        </tr>
-        <tr>
-          <td>Email:</td>
-          <td><input type="text" id="email" placeholder="Enter your email address"><span class="error" id="err-email"></span></td>
-        </tr>
-        <tr>
-          <td>Address:</td>
-          <td><textarea id="address" rows="3" placeholder="Enter full address"></textarea><span class="error" id="err-address"></span></td>
-        </tr>
-        <tr>
-          <td>Password:</td>
-          <td><input type="password" id="password" placeholder="At least 6 characters"><span class="error" id="err-password"></span></td>
-        </tr>
-        <tr>
-          <td>Confirm password:</td>
-          <td><input type="password" id="confirmPassword" placeholder="Re-enter your password"><span class="error" id="err-confirmPassword"></span></td>
-        </tr>
-        <tr>
-          <td></td>
-          <td><input type="checkbox" id="terms"> I agree that only safe, labelled food will be shared
-            <span class="error" id="err-terms"></span></td>
-        </tr>
-        <!-- location fields (required by API) -->
-        <tr>
-          <td>Locality / area:</td>
-          <td><input type="text" id="locality" placeholder="e.g. Bandra West">
-            <span class="error" id="err-locality"></span></td>
-        </tr>
-        <tr>
-          <td>Latitude:</td>
-          <td><input type="number" id="lat" step="any" placeholder="e.g. 19.0596">
-            <span class="error" id="err-lat"></span></td>
-        </tr>
-        <tr>
-          <td>Longitude:</td>
-          <td><input type="number" id="lng" step="any" placeholder="e.g. 72.8295">
-            <span class="error" id="err-lng"></span></td>
-        </tr>
-        <!-- recipient-only fields (shown/hidden by JS) -->
-        <tbody id="recipientFields" style="display:none">
-          <tr>
-            <td>Food types accepted:</td>
-            <td><input type="text" id="foodTypesAccepted" placeholder="e.g. Cooked meals, Bread">
-              <small> (comma-separated)</small>
-              <span class="error" id="err-foodTypesAccepted"></span></td>
-          </tr>
-          <tr>
-            <td>Capacity per day (meals):</td>
-            <td><input type="number" id="capacityPerDay" min="0" placeholder="e.g. 100">
-              <span class="error" id="err-capacityPerDay"></span></td>
-          </tr>
-          <tr>
-            <td>Service radius (km):</td>
-            <td><input type="number" id="serviceRadiusKm" min="0" step="any" placeholder="e.g. 10">
-              <span class="error" id="err-serviceRadiusKm"></span></td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="choice">
+      <h3>Recipient (shelter / NGO)</h3>
+      <p>NGOs, night shelters, orphanages, old-age homes and community kitchens that collect and serve food.</p>
+      <p class="caption">We ask what food you accept, how many meals you can take each day and how far your staff can travel.</p>
+      <a href="register-recipient.html"><button class="btn">Register as a recipient</button></a>
+    </div>
 
-      <input type="submit" value="Register" class="btn" id="submitBtn">
-      <input type="reset" value="Reset" class="btn btn-grey">
-    </form>
+    <p>Already registered? <a href="login.html">Log in here</a></p>
   </div>
 
-  <div class="footer">
-    &copy; 2026 FoodLoop &middot; Full Stack Development Lab Mini Project &middot; Rohan Surana, Ayman Shaikh
-  </div>
-
+  <script src="api.js"></script>
   <script>
-    // ── UI helpers ──────────────────────────────────────────────────────────
-
-    // Show/hide recipient-only fields when the role radio changes
-    document.querySelectorAll('input[name="role"]').forEach(function (radio) {
-      radio.addEventListener("change", function () {
-        var recipientFields = document.getElementById("recipientFields");
-        recipientFields.style.display = (this.value === "Recipient") ? "" : "none";
-      });
-    });
-
-    // Show a red message under a field and highlight it
-    function showError(id, message) {
-      var errEl = document.getElementById("err-" + id);
-      if (errEl) errEl.innerText = message;
-      var field = document.getElementById(id);
-      if (field) field.classList.add("input-error");
-    }
-
-    // Clear all inline errors (called by onreset and before each submit)
-    function clearErrors() {
-      document.querySelectorAll(".error").forEach(function (el) { el.innerText = ""; });
-      document.querySelectorAll(".input-error").forEach(function (el) { el.classList.remove("input-error"); });
-      document.getElementById("serverError").innerText = "";
-    }
-
-    // ── Client-side validation ──────────────────────────────────────────────
-
-    function validateFields() {
-      var ok = true;
-      var role            = document.querySelector('input[name="role"]:checked');
-      var orgName         = document.getElementById("orgName").value.trim();
-      var orgType         = document.getElementById("orgType").value;
-      var contact         = document.getElementById("contact").value.trim();
-      var mobile          = document.getElementById("mobile").value.trim();
-      var email           = document.getElementById("email").value.trim();
-      var address         = document.getElementById("address").value.trim();
-      var password        = document.getElementById("password").value;
-      var confirmPassword = document.getElementById("confirmPassword").value;
-      var terms           = document.getElementById("terms").checked;
-      var locality        = document.getElementById("locality").value.trim();
-      var lat             = document.getElementById("lat").value.trim();
-      var lng             = document.getElementById("lng").value.trim();
-
-      if (!role)        { showError("role",    "Choose donor or recipient."); ok = false; }
-      if (!orgName)     { showError("orgName", "Enter the organisation name."); ok = false; }
-      if (!orgType)     { showError("orgType", "Choose a type."); ok = false; }
-      if (!contact)     { showError("contact", "Enter the contact person's name."); ok = false; }
-
-      var mobilePattern = /^[6-9][0-9]{9}$/;
-      if (!mobilePattern.test(mobile)) { showError("mobile", "Enter a valid 10-digit mobile number."); ok = false; }
-
-      var emailPattern = /^[^ @]+@[^ @]+\.[a-z]+$/i;
-      if (!emailPattern.test(email)) { showError("email", "Enter a valid email address."); ok = false; }
-
-      if (!address)           { showError("address",  "Enter the address."); ok = false; }
-      if (password.length < 6){ showError("password", "Password must be at least 6 characters."); ok = false; }
-      if (password !== confirmPassword) { showError("confirmPassword", "Passwords do not match."); ok = false; }
-      if (!terms)             { showError("terms",    "Please accept the food safety agreement."); ok = false; }
-      if (!locality)          { showError("locality", "Enter the locality / area name."); ok = false; }
-      if (!lat)               { showError("lat",      "Enter the latitude."); ok = false; }
-      if (!lng)               { showError("lng",      "Enter the longitude."); ok = false; }
-
-      return ok;
-    }
-
-    // ── API submit ──────────────────────────────────────────────────────────
-
-    function submitRegister() {
-      clearErrors();
-      if (!validateFields()) return false;   // stay on page; fields are highlighted
-
-      var role    = document.querySelector('input[name="role"]:checked').value; // "Donor" | "Recipient"
-      var apiType = role.toUpperCase();  // "DONOR" | "RECIPIENT"  (enum expected by API)
-
-      var body = {
-        name:     document.getElementById("orgName").value.trim(),
-        type:     apiType,
-        email:    document.getElementById("email").value.trim(),
-        password: document.getElementById("password").value,
-        locality: document.getElementById("locality").value.trim(),
-        lat:      parseFloat(document.getElementById("lat").value),
-        lng:      parseFloat(document.getElementById("lng").value),
-      };
-
-      // Recipient-only optional fields
-      if (apiType === "RECIPIENT") {
-        var foodRaw = document.getElementById("foodTypesAccepted").value.trim();
-        if (foodRaw) {
-          body.foodTypesAccepted = foodRaw.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
-        }
-        var cap = document.getElementById("capacityPerDay").value;
-        if (cap !== "") body.capacityPerDay = parseInt(cap, 10);
-        var radius = document.getElementById("serviceRadiusKm").value;
-        if (radius !== "") body.serviceRadiusKm = parseFloat(radius);
-      }
-
-      // Disable the button while the request is in flight
-      var submitBtn = document.getElementById("submitBtn");
-      submitBtn.disabled = true;
-      submitBtn.value = "Registering...";
-
-      apiFetch("/auth/register", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }).then(function (result) {
-        submitBtn.disabled = false;
-        submitBtn.value = "Register";
-
-        if (result.ok) {
-          saveSession(result.data.token, result.data.organisation);
-          // Redirect based on org type
-          if (result.data.organisation.type === "DONOR") {
-            window.location.href = "donor.html";
-          } else {
-            window.location.href = "recipient.html";
-          }
-        } else {
-          // Show the server's error message on the page (not an alert)
-          document.getElementById("serverError").innerText =
-            (result.data && result.data.message) ? result.data.message : "Registration failed. Please try again.";
-        }
-      });
-
-      return false;  // always prevent native form submission
-    }
+    setupNavbar();
   </script>
-
 </body>
 </html>

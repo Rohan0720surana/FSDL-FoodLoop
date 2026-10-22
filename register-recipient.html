@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Register as a recipient</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
+</head>
+<body>
+
+  <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
+    <h1>FoodLoop</h1>
+    <p>Register a shelter or NGO</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html" class="active">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
+  </div>
+
+  <div class="content">
+    <h2>Recipient registration</h2>
+    <p>For organisations that collect and serve food. Registering a kitchen instead? <a href="register-donor.html">Use the donor form</a>.</p>
+
+    <div class="notice">
+      New shelters are checked by FoodLoop before they receive food offers. You can log in straight away;
+      offers start once your organisation is verified.
+    </div>
+
+    <p id="serverError" class="red-text"></p>
+
+    <form onsubmit="return submitRecipient()" onreset="clearErrors()">
+      <table class="form-table">
+        <tr><th colspan="2">Your organisation</th></tr>
+        <tr>
+          <td><label for="orgName">Organisation name</label></td>
+          <td><input type="text" id="orgName" placeholder="e.g. Sneh Sadan Balgram">
+            <span class="error" id="err-orgName"></span></td>
+        </tr>
+        <tr>
+          <td><label for="category">Type of organisation</label></td>
+          <td>
+            <select id="category">
+              <option value="">-- Select --</option>
+              <option>NGO</option>
+              <option>Night shelter</option>
+              <option>Orphanage</option>
+              <option>Old-age home</option>
+              <option>Community kitchen</option>
+              <option>Food bank</option>
+            </select>
+            <span class="error" id="err-category"></span>
+          </td>
+        </tr>
+
+        <tr><th colspan="2">Food you can take</th></tr>
+        <tr>
+          <td>Food you accept</td>
+          <td id="foodTypes">
+            <label><input type="checkbox" name="foodType" value="VEG"> Veg</label> &nbsp;
+            <label><input type="checkbox" name="foodType" value="NON_VEG"> Non-veg</label> &nbsp;
+            <label><input type="checkbox" name="foodType" value="BAKERY"> Bakery</label> &nbsp;
+            <label><input type="checkbox" name="foodType" value="PACKAGED"> Packaged</label>
+            <span class="error" id="err-foodTypes"></span>
+          </td>
+        </tr>
+        <tr>
+          <td><label for="capacity">Meals you can take per day</label></td>
+          <td><input type="number" id="capacity" min="1" max="5000" placeholder="e.g. 80">
+            <span class="hint">Offers bigger than the room you have left that day are not sent to you.</span>
+            <span class="error" id="err-capacity"></span></td>
+        </tr>
+        <tr>
+          <td><label for="radius">How far your staff can travel</label></td>
+          <td>
+            <select id="radius">
+              <option value="">-- Select --</option>
+              <option value="5">Up to 5 km</option>
+              <option value="10">Up to 10 km</option>
+              <option value="15">Up to 15 km</option>
+              <option value="20">Up to 20 km</option>
+              <option value="25">Up to 25 km</option>
+            </select>
+            <span class="error" id="err-radius"></span>
+          </td>
+        </tr>
+
+        <tr><th colspan="2">Where you are</th></tr>
+        <tr>
+          <td><label for="address">Address</label></td>
+          <td><textarea id="address" rows="3" placeholder="Building, road, pin code"></textarea>
+            <span class="error" id="err-address"></span></td>
+        </tr>
+        <tr>
+          <td><label for="area">Area</label></td>
+          <td>
+            <select id="area"><option value="">-- Select your area --</option></select>
+            <span class="hint">Used to work out how far each kitchen is from you.</span>
+            <span class="error" id="err-area"></span>
+          </td>
+        </tr>
+
+        <tr><th colspan="2">Contact person</th></tr>
+        <tr>
+          <td><label for="contact">Name</label></td>
+          <td><input type="text" id="contact" placeholder="Who kitchens should call">
+            <span class="error" id="err-contact"></span></td>
+        </tr>
+        <tr>
+          <td><label for="mobile">Mobile number</label></td>
+          <td><input type="text" id="mobile" maxlength="10" placeholder="10 digits">
+            <span class="error" id="err-mobile"></span></td>
+        </tr>
+
+        <tr><th colspan="2">Your login</th></tr>
+        <tr>
+          <td><label for="email">Email</label></td>
+          <td><input type="text" id="email" placeholder="contact@yourngo.org">
+            <span class="error" id="err-email"></span></td>
+        </tr>
+        <tr>
+          <td><label for="password">Password</label></td>
+          <td><input type="password" id="password" placeholder="At least 6 characters">
+            <span class="error" id="err-password"></span></td>
+        </tr>
+        <tr>
+          <td><label for="confirmPassword">Confirm password</label></td>
+          <td><input type="password" id="confirmPassword" placeholder="Type it again">
+            <span class="error" id="err-confirmPassword"></span></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td><label><input type="checkbox" id="terms"> Our own staff will collect the food and serve it the same day.
+            </label><span class="error" id="err-terms"></span></td>
+        </tr>
+      </table>
+
+      <input type="submit" value="Register organisation" class="btn" id="submitBtn">
+      <input type="reset" value="Clear form" class="btn btn-grey">
+    </form>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="areas.js"></script>
+  <script src="register.js"></script>
+  <script>
+    setupNavbar();
+    fillAreaSelect("area");
+    watchFields();   // check each field as soon as you leave it
+
+    // the ticked food types
+    function tickedFoodTypes() {
+      let foodTypes = [];
+      let boxes = document.querySelectorAll("input[name='foodType']:checked");
+      for (let i = 0; i < boxes.length; i++) {
+        foodTypes.push(boxes[i].value);
+      }
+      return foodTypes;
+    }
+
+    function submitRecipient() {
+      clearErrors();
+      let ok = checkAllFields();
+      let foodTypes = tickedFoodTypes();
+      if (foodTypes.length == 0) {
+        showError("foodTypes", "Tick at least one type of food you can accept.");
+        ok = false;
+      }
+      if (!document.getElementById("terms").checked) {
+        showError("terms", "Please confirm that your staff will collect the food.");
+        ok = false;
+      }
+      if (!ok) return false;
+
+      let body = commonBody("RECIPIENT");
+      body.foodTypesAccepted = foodTypes;
+      body.capacityPerDay = Number(document.getElementById("capacity").value);
+      body.serviceRadiusKm = Number(document.getElementById("radius").value);
+      sendRegistration(body);
+      return false;   // stop the browser's own form submit
+    }
+  </script>
+</body>
+</html>
