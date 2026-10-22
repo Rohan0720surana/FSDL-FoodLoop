@@ -101,10 +101,12 @@ td {
   border: 1px solid #cccccc;
   padding: 8px;
   text-align: left;
+  overflow-wrap: anywhere;   /* long emails wrap instead of widening the page */
 }
 
 th {
   background-color: #e8f5e9;
+  overflow-wrap: normal;   /* headings never split mid-word */
 }
 
 /* ---------- forms ---------- */
@@ -115,6 +117,8 @@ input[type="number"],
 select,
 textarea {
   width: 300px;
+  max-width: 100%;          /* never wider than the screen */
+  box-sizing: border-box;
   padding: 6px;
   border: 1px solid #aaaaaa;
   border-radius: 4px;
@@ -128,6 +132,8 @@ textarea {
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;       /* button text stays on one line */
+  overflow-wrap: normal;
 }
 
 .btn-grey {
@@ -156,6 +162,7 @@ textarea {
 /* ---------- form errors (shown next to the field) ---------- */
 .error {
   display: block;
+  min-height: 16px;   /* space kept for the message, so the form does not jump while you click */
   color: #c62828;
   font-size: 13px;
   margin-top: 3px;
@@ -199,11 +206,269 @@ textarea {
   font-size: 14px;
 }
 
-/* ---------- footer ---------- */
-.footer {
-  background-color: #333333;
-  color: #dddddd;
-  text-align: center;
-  padding: 12px;
+/* ---------- logged-in name in the nav bar ---------- */
+.nav-user {
+  float: right;
+  color: #e8f5e9;
+  font-size: 14px;
+  padding-top: 4px;
+}
+
+.nav-user a {
+  margin-right: 0;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* ---------- forms laid out in a table ---------- */
+.form-table {
+  table-layout: fixed;   /* columns keep their width on small screens */
+}
+
+.form-table td {
+  border: none;
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.form-table td:first-child {
+  width: 35%;
+  font-weight: bold;
+  padding-top: 12px;
+}
+
+.form-table th {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #cccccc;
+  color: #2e7d32;
+  padding-top: 18px;
+}
+
+.hint {
+  display: block;
+  font-size: 12px;
+  color: #666666;
+  margin-top: 3px;
+}
+
+.btn-small {
+  padding: 5px 10px;
   font-size: 13px;
+}
+
+.code-input {
+  width: 70px !important;
+}
+
+/* ---------- the two "register as" choices ---------- */
+.choice {
+  display: inline-block;
+  vertical-align: top;
+  width: 45%;
+  box-sizing: border-box;
+  margin: 0 2% 15px 0;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  padding: 15px;
+  background-color: #fafafa;
+}
+
+.choice h3 {
+  margin-top: 0;
+  color: #2e7d32;
+}
+
+/* ---------- status labels ---------- */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  background-color: #777777;
+}
+
+.badge-matched { background-color: #e65100; }
+.badge-accepted { background-color: #2e7d32; }
+.badge-collected { background-color: #1b5e20; }
+.badge-expired { background-color: #c62828; }
+
+/* ---------- notices ---------- */
+.notice {
+  border: 1px solid #f0c36d;
+  background-color: #fff8e1;
+  border-radius: 6px;
+  padding: 10px 15px;
+  margin-bottom: 15px;
+}
+
+/* ---------- home page numbers ---------- */
+.stat {
+  display: inline-block;
+  vertical-align: top;
+  width: 30%;
+  box-sizing: border-box;
+  margin: 0 2% 10px 0;
+  padding: 10px;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  background-color: #fafafa;
+}
+
+.stat b {
+  display: block;
+  font-size: 26px;
+  color: #2e7d32;
+}
+
+/* ---------- handover code shown to the shelter ---------- */
+.handover-code {
+  font-size: 28px;
+  font-weight: bold;
+  letter-spacing: 4px;
+  color: #1b5e20;
+}
+
+/* ---------- small screens ---------- */
+.choice,
+.stat {
+  min-width: 220px;
+}
+
+/* ---------- keyboard users can always see where they are ---------- */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 3px solid #ffb300;
+  outline-offset: 1px;
+}
+
+/* ---------- a field that passed its check ---------- */
+.input-ok {
+  border: 1px solid #2e7d32 !important;
+}
+
+.ok-tick {
+  color: #2e7d32;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+/* ---------- labels in the first column of a form ---------- */
+.form-table label {
+  font-weight: bold;
+}
+
+/* ---------- pickup timeline (an ordered list) ---------- */
+.timeline {
+  list-style: none;
+  margin: 10px 0;
+  padding-left: 0;
+  border-left: 3px solid #c8e6c9;
+}
+
+.timeline li {
+  position: relative;
+  margin: 0 0 10px 0;
+  padding-left: 18px;
+}
+
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 4px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background-color: #2e7d32;
+}
+
+.timeline li.bad::before { background-color: #c62828; }
+.timeline li.wait::before { background-color: #e65100; }
+
+.timeline .when {
+  display: inline-block;
+  width: 70px;
+  color: #666666;
+  font-size: 13px;
+}
+
+/* ---------- simple bar charts (a div whose width is set by JavaScript) ---------- */
+.bar-row {
+  margin: 4px 0;
+}
+
+.bar-label {
+  display: inline-block;
+  width: 110px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.bar-track {
+  display: inline-block;
+  width: 60%;
+  height: 16px;
+  background-color: #eeeeee;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+.bar-fill {
+  height: 16px;
+  background-color: #2e7d32;
+  border-radius: 3px;
+}
+
+.bar-value {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+/* ---------- star ratings ---------- */
+.star {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #bbbbbb;
+  cursor: pointer;
+  padding: 0 1px;
+}
+
+.star.on {
+  color: #f9a825;
+}
+
+.stars-shown {
+  color: #f9a825;
+}
+
+/* ---------- the printable handover slip ---------- */
+#slip {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #slip,
+  #slip * {
+    visibility: visible;
+  }
+  #slip {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    font-size: 16px;
+  }
 }
