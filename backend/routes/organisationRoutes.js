@@ -1,24 +1,15 @@
 const express = require('express');
 const router = express.Router();
 
-const {
-  getAllOrganisations,
-  getOrganisationById,
-  updateOrganisation,
-  deleteOrganisation,
-} = require('../controllers/organisationController');
+const { getAllOrganisations, getMe, updateMe, deleteMe } = require('../controllers/organisationController');
 const { protect } = require('../middleware/authMiddleware');
 
-// GET    /api/organisations
+// GET    /api/organisations      verified shelters for the map (public)
 router.get('/', getAllOrganisations);
 
-// GET    /api/organisations/:id
-router.get('/:id', getOrganisationById);
-
-// PUT    /api/organisations/:id  (protected)
-router.put('/:id', protect, updateOrganisation);
-
-// DELETE /api/organisations/:id  (protected)
-router.delete('/:id', protect, deleteOrganisation);
+// GET / PUT / DELETE /api/organisations/me   your own account (logged in)
+router.get('/me', protect, getMe);
+router.put('/me', protect, updateMe);
+router.delete('/me', protect, deleteMe);
 
 module.exports = router;
