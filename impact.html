@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Impact</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
+</head>
+<body>
+
+  <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
+    <h1>FoodLoop</h1>
+    <p>Impact &middot; how much food reached people instead of the bin</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+    <a href="impact.html" class="active">Impact</a>
+  </div>
+
+  <div class="content">
+    <p class="caption">Every number on this page is worked out live from the database with MongoDB aggregation
+      (<code>$match</code>, <code>$group</code>, <code>$sort</code>, <code>$lookup</code>).</p>
+
+    <div id="totals"><p>Loading...</p></div>
+    <p id="assumption" class="caption"></p>
+
+    <h2>Meals collected in the last 14 days</h2>
+    <div id="dailyChart"></div>
+
+    <h2>What kind of food was saved</h2>
+    <div id="typeChart"></div>
+
+    <h2>How listings ended</h2>
+    <div id="outcomes"></div>
+
+    <h2>Kitchens that gave the most</h2>
+    <table id="donorTable"></table>
+
+    <h2>Shelters that collected the most</h2>
+    <table id="shelterTable"></table>
+  </div>
+
+  <script src="api.js"></script>
+  <script>
+    setupNavbar();
+
+    // one horizontal bar: label, a bar as wide as value / largest, and the value
+    function bar(label, value, largest, text) {
+      let width = largest > 0 ? Math.round((value / largest) * 100) : 0;
+      return "<div class='bar-row'>" +
+        "<span class='bar-label'>" + label + "</span>" +
+        "<span class='bar-track'><div class='bar-fill' style='width: " + width + "%'></div></span>" +
+        "<span class='bar-value'>" + text + "</span>" +
+        "</div>";
+    }
+
+    function biggest(rows, field) {
+      let max = 0;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][field] > max) max = rows[i][field];
+      }
+      return max;
+    }
+
+    apiFetch("/stats/impact").then(function (result) {
+      if (!result.ok) {
+        document.getElementById("totals").innerHTML = "<p class='red-text'>" + escapeHtml(result.data.message) + "</p>";
+        return;
+      }
+      let s = result.data;
+
+      // the big numbers
+      document.getElementById("totals").innerHTML =
+        "<div class='stat'><b>" + s.totalMeals + "</b>meals collected</div>" +
+        "<div class='stat'><b>about " + s.foodSavedKg + " kg</b>of food kept out of the bin</div>" +
+        "<div class='stat'><b>" + (s.collectionRate == null ? "-" : s.collectionRate + "%") + "</b>of finished listings were collected</div>";
+      document.getElementById("assumption").innerText =
+        "The weight is an estimate: we assume one meal is about " + (s.kgPerMeal * 1000) + " g of food.";
+
+      // last 14 days
+      let maxDay = biggest(s.daily, "meals");
+      let html = "";
+      for (let i = 0; i < s.daily.length; i++) {
+        let d = s.daily[i];
+        let label = new Date(d.date + "T12:00:00").toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+        html += bar(label, d.meals, maxDay, d.meals + " meals" + (d.pickups ? " (" + d.pickups + " pickup" + (d.pickups > 1 ? "s" : "") + ")" : ""));
+      }
+      document.getElementById("dailyChart").innerHTML = html;
+
+      // by food type
+      let maxType = biggest(s.byFoodType, "meals");
+      html = "";
+      for (let i = 0; i < s.byFoodType.length; i++) {
+        let t = s.byFoodType[i];
+        html += bar(foodTypeName(t.foodType), t.meals, maxType, t.meals + " meals");
+      }
+      document.getElementById("typeChart").innerHTML = html || "<p>Nothing collected yet.</p>";
+
+      // collected vs expired
+      let finished = s.collected.listings + s.expired.listings;
+      document.getElementById("outcomes").innerHTML =
+        bar("Collected", s.collected.listings, finished, s.collected.listings + " listings, " + s.collected.meals + " meals") +
+        bar("Expired", s.expired.listings, finished, s.expired.listings + " listings, " + s.expired.meals + " meals") +
+        "<p class='caption'>Expired means no shelter could collect the food before its deadline.</p>";
+
+      // top kitchens and shelters
+      let rows = "<tr><th>Kitchen</th><th>Area</th><th>Meals given</th><th>Pickups</th><th>Food rating from shelters</th></tr>";
+      for (let i = 0; i < s.topDonors.length; i++) {
+        let d = s.topDonors[i];
+        rows += "<tr><td>" + escapeHtml(d.name) + "</td><td>" + escapeHtml(d.locality) + "</td><td>" + d.meals +
+          "</td><td>" + d.pickups + "</td><td>" + (d.rating ? d.rating + " <span class='stars-shown'>&#9733;</span>" : "-") + "</td></tr>";
+      }
+      document.getElementById("donorTable").innerHTML = rows;
+
+      rows = "<tr><th>Shelter</th><th>Area</th><th>Meals collected</th><th>Pickups</th><th>Punctuality rating from kitchens</th></tr>";
+      for (let i = 0; i < s.topShelters.length; i++) {
+        let d = s.topShelters[i];
+        rows += "<tr><td>" + escapeHtml(d.name) + "</td><td>" + escapeHtml(d.locality) + "</td><td>" + d.meals +
+          "</td><td>" + d.pickups + "</td><td>" + (d.rating ? d.rating + " <span class='stars-shown'>&#9733;</span>" : "-") + "</td></tr>";
+      }
+      document.getElementById("shelterTable").innerHTML = rows;
+    });
+  </script>
+</body>
+</html>

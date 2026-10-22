@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FoodLoop - Admin</title>
+  <link rel="stylesheet" type="text/css" href="style.css">
+  <link rel="icon" href="images/logo.svg">
+</head>
+<body>
+
+  <div class="header">
+    <img src="images/logo.svg" alt="FoodLoop logo" class="logo">
+    <h1>FoodLoop</h1>
+    <p>Admin &middot; check new shelters before they receive food</p>
+  </div>
+
+  <div class="navbar">
+    <a href="index.html">Home</a>
+    <a href="register.html">Register</a>
+    <a href="login.html">Login</a>
+    <a href="donor.html">Donor</a>
+    <a href="recipient.html">Recipient</a>
+    <a href="map.html">Map</a>
+    <a href="impact.html">Impact</a>
+  </div>
+
+  <div class="content">
+    <p id="greeting"></p>
+    <p>Before a shelter gets food, someone should check that it is a real organisation: call the contact number,
+      and confirm the address and how many people it feeds. Verify it if everything is right, or turn it down
+      with a reason it can see on its dashboard.</p>
+
+    <div id="summary"></div>
+
+    <h2>Waiting for verification</h2>
+    <p id="actionMessage"></p>
+    <div id="pending"><p>Loading...</p></div>
+
+    <h2>All shelters</h2>
+    <table id="shelterTable"><tr><td>Loading...</td></tr></table>
+
+    <h2>All kitchens</h2>
+    <table id="kitchenTable"><tr><td>Loading...</td></tr></table>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
