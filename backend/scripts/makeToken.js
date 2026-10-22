@@ -11,7 +11,7 @@
  *   TOKEN=$(node scripts/makeToken.js "Sneh Sadan")
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const Organisation = require('../models/Organisation');
@@ -35,8 +35,9 @@ const run = async () => {
     process.exit(1);
   }
 
-  const token = jwt.sign({ id: org._id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '24h',
+  // same payload as a real login: id + type (DONOR or RECIPIENT)
+  const token = jwt.sign({ id: org._id, type: org.type }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   });
 
   // Print token only — nothing else — so shell capture works cleanly
