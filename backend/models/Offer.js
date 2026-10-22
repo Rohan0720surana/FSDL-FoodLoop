@@ -20,15 +20,26 @@ const OfferSchema = new mongoose.Schema(
       type: Number,
       required: [true, 'Rank is required'],
     },
+    // PENDING  waiting in line (or being asked, if active)
+    // ACCEPTED the shelter is coming
+    // PASSED   the shelter said no
+    // LAPSED   the shelter did not reply in time, so it moved on
+    // EXPIRED  someone else accepted, or the shelter can no longer make it
     status: {
       type: String,
-      enum: ['PENDING', 'ACCEPTED', 'PASSED', 'EXPIRED'],
+      enum: ['PENDING', 'ACCEPTED', 'PASSED', 'LAPSED', 'EXPIRED'],
       default: 'PENDING',
     },
     active: {
       type: Boolean,
       default: false,
     },
+    // when this shelter started being asked (for the reply window)
+    activeSince: {
+      type: Date,
+    },
+    km: { type: Number },
+    driveMinutes: { type: Number },
     breakdown: {
       time: { type: Number },
       proximity: { type: Number },
